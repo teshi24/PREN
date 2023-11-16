@@ -1,18 +1,9 @@
-PFAD = 'C:\\Users\\Nicolas\\Documents\\Python Scripts\\PREN\\testdaten\\video.mp4'
+import math
 import cv2
 import numpy as np
 
-
-# Load the video
-video_path = PFAD
-cap = cv2.VideoCapture(video_path)
-
-while cap.isOpened():
-    ret, frame = cap.read()
-
-    # If the frame was not grabbed, then we have reached the end of the stream
-    if not ret:
-        break
+PFAD = 'C:\\Users\\Nicolas\\Documents\\Python Scripts\\PREN\\testdaten\\video.mp4'
+def find_centeroid_white_Area(frame):
 
     # Convert the frame to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -26,22 +17,63 @@ while cap.isOpened():
     # Ensure the area is not zero to avoid division by zero
     if moments['m00'] != 0:
         # Calculate the x and y coordinates of the centroid
-        cx = int(moments['m10'] / moments['m00'])
-        cy = int(moments['m01'] / moments['m00'])
+        cX = int(moments['m10'] / moments['m00'])
+        cY = int(moments['m01'] / moments['m00'])
     else:
-        cx, cy = None, None
+        cX, cY = None, None
 
-    # If centroid is found, draw it on the frame
-    if cx is not None and cy is not None:
-        cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1)
+    return cX,cY
 
-    # Display the frame with the centroid
-    cv2.imshow('Video with Centroid', frame)
+def find_circle_center(frame):
 
-    # Press 'q' to exit the video window
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    # Convert the image to gray scale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-cap.release()
-cv2.destroyAllWindows()
+    # Apply GaussianBlur to remove noise and smooth the image
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Threshold the image to create a binary image for contour detection
+    _, thresh = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY)
+
+    # Find contours in the thresholded image
+    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Find the largest contour, which should be the black circle
+    largest_contour = max(contours, key=cv2.contourArea)
+
+    # Calculate the moments of the largest contour to find the center
+    M = cv2.moments(largest_contour)
+    if M["m00"] != 0:
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+    else:
+        cX, cY = None, None
+
+    return cX, cY-55
+
+
+def calculate_angle(frame):
+    pt1 = find_centeroid_white_Area(frame)
+    pt2 = find_circle_center(frame)
+
+    # Calculate the difference between the two points
+    delta_x = pt2[0] - pt1[0]
+    delta_y = pt2[1] - pt1[1]
+
+    # Calculate the angle in radians and then convert to degrees
+    angle_radians = math.atan2(delta_y, delta_x)
+    angle_degrees = math.degrees(angle_radians)
+
+    return int(angle_degrees)+180
+
+def get_image_by_angle(angle,mp4path):
+    cap = cv2.VideoCapture(mp4path)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if calculate_angle(frame) == angle:
+            return frame
+        if not ret:
+            break
+
+
 
