@@ -1,6 +1,7 @@
+from env import PATH
+
 import cv2
 import numpy as np
-
 
 def detect_color(image, lower_bound, upper_bound, min_area=1000):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -30,7 +31,7 @@ yellow_lower = np.array([15, 150, 100])
 yellow_upper = np.array([35, 255, 255])
 
 # VideoCapture-Objekt erstellen und Video-Datei laden
-cap = cv2.VideoCapture('C:\\Users\\Nicolas\\Documents\\Python Scripts\\PREN\\testdaten\\video.mp4')
+cap = cv2.VideoCapture(PATH)
 
 while True:
     ret, frame = cap.read()
