@@ -1,1 +1,4 @@
 testdata
+.idea
+*__pycache__
+env.py
