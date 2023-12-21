@@ -479,7 +479,7 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier|
         json.dump(end_result, file)
 
 
-def getFrame(PATH):
+def analyze_cube_video(PATH):
     # VideoCapture-Objekt erstellen und Video-Datei laden
     cap = cv2.VideoCapture(PATH)
 
@@ -507,7 +507,8 @@ def getFrame(PATH):
 
         angle = angle + 90
         # if angle >= 270:
-        #     break
+        # todo: remove
+        break
     analyze_video_positions(video_positions)
 
     return frame
