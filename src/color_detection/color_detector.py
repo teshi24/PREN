@@ -499,14 +499,10 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
         else:
             end_result[end_position] = most_probable_color
     logging.info(end_result)
-    now = datetime.now().strftime('%Y-%m-%d.%H.%M.%S')
-    file_name = 'end_result_' + str(now) + '.json'
-    file_path = os.path.join('testdata', file_name)
-    with open(file_path, 'w') as file:
-        json.dump(end_result, file)
+    return end_result
 
 
-def analyze_cube_video(path):
+def analyze_cube_video(path, i):
     # VideoCapture-Objekt erstellen und Video-Datei laden
     cap = cv2.VideoCapture(path)
 
@@ -537,7 +533,13 @@ def analyze_cube_video(path):
         # if angle >= 270:
         # todo: remove
         # break
-    analyze_video_positions(video_positions)
+    config = analyze_video_positions(video_positions)
+
+    time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    file_name = f"positions_config_{i}.json"
+    file_path = os.path.join('testdata', file_name)
+    with open(file_path, 'w') as file:
+        json.dump({'time': time, 'config': config}, file)
 
     cap.release()
     cv2.destroyAllWindows()
