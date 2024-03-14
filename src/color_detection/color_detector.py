@@ -490,7 +490,7 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
         logging.debug(msg6)
 
     end_result = defaultConfig.copy()
-    logging.debug("end result")
+    logging.info("end result")
     for end_position, colors in end_positions_percentages.items():
         most_probable_color = max(colors, key=colors.get)
 
@@ -499,7 +499,7 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
             end_result[end_position] = ''
         else:
             end_result[end_position] = most_probable_color
-    logging.debug(end_result)
+    logging.info(end_result)
     now = datetime.now().strftime('%Y-%m-%d.%H.%M.%S')
     file_name = 'end_result_' + str(now) + '.json'
     file_path = os.path.join('testdata', file_name)
