@@ -395,26 +395,26 @@ def get_cubes_from_frame(frame, angle, cv2):
     for cnt in blue_contours:
         x, y, w, h = cv2.boundingRect(cnt)
         cube = Cube(Color.BLUE, x, y, w, h)
-        cv2 = draw_cube(cnt, cube, cv2, frame)
+        draw_cube(cnt, cube, cv2, frame)
         cubes.append(cube)
 
     for cnt in red_contours:
         x, y, w, h = cv2.boundingRect(cnt)
         cube = Cube(Color.RED, x, y, w, h)
-        cv2 = draw_cube(cnt, cube, cv2, frame)
+        draw_cube(cnt, cube, cv2, frame)
         cubes.append(cube)
 
     for cnt in yellow_contours:
         x, y, w, h = cv2.boundingRect(cnt)
         cube = Cube(Color.YELLOW, x, y, w, h)
-        cv2 = draw_cube(cnt, cube, cv2, frame)
+        draw_cube(cnt, cube, cv2, frame)
         cubes.append(cube)
 
     if logging_level == logging.DEBUG:
         cv2.imshow('Video', frame)
         while cv2.waitKey(1) & 0xFF != ord('q'):
             continue
-    return [cv2, cubes]
+    return cubes
 
 
 def draw_cube(cnt, cube, cv2, frame):
@@ -423,7 +423,6 @@ def draw_cube(cnt, cube, cv2, frame):
     cv2.circle(frame, cube.center, 1, (255, 255, 255), -1)
     cv2.putText(frame, cube.color.color_name, cube.left_top, cv2.FONT_HERSHEY_SIMPLEX, 0.7, cube.color.rgb_value, 2)
     draw_contours(cnt, cv2, frame)
-    return cv2
 
 
 def draw_contours(cnt, cv2, frame):
@@ -530,7 +529,7 @@ def analyze_cube_video(path):
             # todo: check with angle detector whether we are good
             frame_count = 220
 
-        [cv3, raw_cubes] = get_cubes_from_frame(frame, angle, cv2)
+        raw_cubes = get_cubes_from_frame(frame, angle, cv2)
         cubes = split_big_cubes(raw_cubes)
         video_positions.append(analyze_positions_in_one_frame(cubes, angle))
 
