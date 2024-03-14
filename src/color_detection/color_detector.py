@@ -508,7 +508,7 @@ def analyze_cube_video(PATH):
         angle = angle + 90
         # if angle >= 270:
         # todo: remove
-        break
+        # break
     analyze_video_positions(video_positions)
 
     return frame
