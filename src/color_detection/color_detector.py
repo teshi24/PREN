@@ -1,11 +1,14 @@
 from datetime import datetime
 import json
 import os
+import logging
 from dataclasses import dataclass
 from enum import Enum
 import cv2
 import numpy as np
-from typing import Dict, Type, Optional
+from typing import Dict, Type
+
+from env import logging_level
 
 cube_max_width = 300
 cube_max_height = 300
@@ -24,7 +27,7 @@ yellow_upper = np.array([50, 255, 255])
 def detect_color(image, lower_bound1, upper_bound1, lower_bound2=None, upper_bound2=None, min_area=700):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, lower_bound1, upper_bound1)
-    if (lower_bound2 is not None):
+    if lower_bound2 is not None:
         mask = cv2.add(cv2.inRange(hsv, lower_bound2, upper_bound2), mask)
 
     # Morphologische Operationen
@@ -57,7 +60,7 @@ class Color(ColorData, Enum):
     NONE = 'none', ()
 
 
-class Cube():
+class Cube:
     def __init__(self, color, x, y, w, h):
         self.color = color
         self.x = x
@@ -72,18 +75,18 @@ class Cube():
         self.right_bottom = (x + w, y + h)
         self.left_bottom = (x, y + h)
 
-    def printValues(self):
-        print("----------------------")
-        print("color: " + self.color.color_name)
-        print("x: " + str(self.x))
-        print("y: " + str(self.y))
-        print("w: " + str(self.w))
-        print("h: " + str(self.h))
-        print("center       (cx, cy):       " + str(self.center))
-        print("left top     (x, y):         " + str(self.left_top))
-        print("right top    (x + w, y):     " + str(self.right_top))
-        print("right bottom (x + w, y + h): " + str(self.right_bottom))
-        print("left bottom  (x, y + h):     " + str(self.left_bottom))
+    def log_values(self):
+        logging.debug("----------------------")
+        logging.debug("color: " + self.color.color_name)
+        logging.debug("x: " + str(self.x))
+        logging.debug("y: " + str(self.y))
+        logging.debug("w: " + str(self.w))
+        logging.debug("h: " + str(self.h))
+        logging.debug("center       (cx, cy):       " + str(self.center))
+        logging.debug("left top     (x, y):         " + str(self.left_top))
+        logging.debug("right top    (x + w, y):     " + str(self.right_top))
+        logging.debug("right bottom (x + w, y + h): " + str(self.right_bottom))
+        logging.debug("left bottom  (x, y + h):     " + str(self.left_bottom))
 
     def width_in_range(self):
         return self.w < cube_max_width
@@ -92,27 +95,33 @@ class Cube():
         return self.h < cube_max_height
 
 
-class PositionIdentifier():
-    def __init__(self, calibrationCube: Cube, position_in_frame: int, prerequisite: int | None = None, hidden_by: [[int]] = None):
-        self.calibrationCube = calibrationCube
+class PositionIdentifier:
+    def __init__(self,
+                 calibration_cube: Cube,
+                 position_in_frame: int,
+                 prerequisite: int | None = None,
+                 hidden_by: [[int]] = None):
+        self.calibrationCube = calibration_cube
         self.toleranceXAxis = 35
         self.toleranceYAxis = 85
         self.position = position_in_frame
         self.prerequisite = prerequisite
         self.hidden_by = hidden_by
 
-    def isCubeAtPosition(self, cube: Cube):
+    def is_cube_at_position(self, cube: Cube):
         return (self.__is_value_in_range(cube.x, self.calibrationCube.x, self.toleranceXAxis) and
                 self.__is_value_in_range(cube.y, self.calibrationCube.y, self.toleranceYAxis) and
                 self.__is_value_in_range(cube.cx, self.calibrationCube.cx, self.toleranceXAxis) and
                 self.__is_value_in_range(cube.cy, self.calibrationCube.cy, self.toleranceYAxis))
 
-    def __is_value_in_range(self, value: int, average: int, delta: int):
+    @staticmethod
+    def __is_value_in_range(value: int, average: int, delta: int):
         lower_bound = average - delta
         upper_bound = average + delta
         return lower_bound <= value <= upper_bound
 
     # todo: handle hidden_by
+
 
 # würfelposition: position_im_frame
 # obere Fläche  0°             obere Fläche  90°                              obere Fläche  180°           obere Fläche  270°
@@ -129,7 +138,7 @@ class PositionIdentifier():
 # +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
 #     |      weisser Bereich                                                                    weisser Bereich |
 
-defaultConfig: Dict[int, Type[PositionIdentifier|None]] = {
+defaultConfig: Dict[int, Type[PositionIdentifier | None]] = {
     1: None,
     2: None,
     3: None,
@@ -254,6 +263,8 @@ calibratedPositions270Degree = {
 @dataclass
 class CalibratedPosition:
     positions: Dict[int, PositionIdentifier]
+
+
 class CalibratedPositions(CalibratedPosition, Enum):
     DEGREE_0 = calibratedPositions0Degree,
     DEGREE_90 = calibratedPositions90Degree,
@@ -273,13 +284,14 @@ class CalibratedPositions(CalibratedPosition, Enum):
         else:
             raise ValueError(f"Invalid angle: {angle}")
 
+
 # for i in range(0, 8):
 #     calibrated_position = calibratedPositions.get(i + 1)
 #     if calibrated_position is None:
 #         continue
 #     calibrated_position.calibrationCube.printValues()
 
-def splitCubesNextToEachOther(cube: [Cube]):
+def split_cubes_next_to_each_other(cube: [Cube]):
     half_w = int(cube.w / 2)
 
     right_cube = Cube(cube.color, cube.x, cube.y, half_w, cube.h)
@@ -287,7 +299,8 @@ def splitCubesNextToEachOther(cube: [Cube]):
 
     return [right_cube, left_cube]
 
-def splitCubesOnTopOfEachOther(cube: [Cube]):
+
+def split_cubes_on_top_of_each_other(cube: [Cube]):
     half_h = int(cube.h / 2)
 
     right_cube = Cube(cube.color, cube.x, cube.y, cube.w, half_h)
@@ -296,45 +309,49 @@ def splitCubesOnTopOfEachOther(cube: [Cube]):
     return [right_cube, left_cube]
 
 
-def splitBigCubes(cubes: [Cube]):
-    cleanCubes: [Cube] = []
+def split_big_cubes(cubes: [Cube]):
+    clean_cubes: [Cube] = []
 
     for cube in cubes:
         width_in_range = cube.width_in_range()
         height_in_range = cube.height_in_range()
         if width_in_range and height_in_range:
-            # cube standardsize
-            cleanCubes.append(cube)
+            # cube standard size
+            clean_cubes.append(cube)
             continue
         if not width_in_range:
             if not height_in_range:
                 # todo: fix spezialfall - mit cnts analysieren
-                cleanCubes.append(cube)
+                clean_cubes.append(cube)
                 continue
             # nebeneinander
-            cleanCubes.extend(splitCubesNextToEachOther(cube))
+            clean_cubes.extend(split_cubes_next_to_each_other(cube))
             continue
-        # todo: fix spezialfall wahrscheinlich obereinander
+        # todo: fix spezialfall wahrscheinlich ober einander
         #       ! kann aber auch hintereinander sein !
-        cleanCubes.extend(splitCubesOnTopOfEachOther(cube))
+        clean_cubes.extend(split_cubes_on_top_of_each_other(cube))
 
-    return cleanCubes
+    return clean_cubes
 
 
-def analyzePositionsInOneFrame(cubes: [Cube], angle):
+def analyze_positions_in_one_frame(cubes: [Cube], angle):
     positions = defaultConfig.copy()
 
-    calibratedPositions = CalibratedPositions.from_angle(angle).positions
+    calibrated_positions = CalibratedPositions.from_angle(angle).positions
 
     for cube in cubes:
-        print("color: " + str(cube.color.color_name) + ", x: " + str(cube.x) + ", y: " + str(cube.y) + ", center: " + str(cube.center))
-        for key, position_identifier in calibratedPositions.items():
-            print("calibratedPosition: " + str(position_identifier))
-            if positions[key] is None and position_identifier is not None and position_identifier.isCubeAtPosition(cube):
+        msg = "color: " + str(cube.color.color_name) + ", x: " + str(cube.x) + ", y: " + str(
+            cube.y) + ", center: " + str(cube.center)
+        logging.debug(msg)
+        for key, position_identifier in calibrated_positions.items():
+            msg1 = "calibratedPosition: " + str(position_identifier)
+            logging.debug(msg1)
+            if positions[key] is None and position_identifier is not None and position_identifier.is_cube_at_position(
+                    cube):
                 positions[key] = cube.color
                 break
 
-    print_positions("detected positions:", positions)
+    log_positions("detected positions:", positions)
 
     # todo: fix prep
     # changed_positions = positions.copy()
@@ -342,7 +359,7 @@ def analyzePositionsInOneFrame(cubes: [Cube], angle):
     #     color = positions[key]
     #     if color is None:
     #         continue
-    #     calibratedPosition = calibratedPositions[key]
+    #     calibratedPosition = calibrated_positions[key]
     #     print("analyzed item: " + str(key) + ': ' + str(positions[key]))
     #     if calibratedPosition is not None and calibratedPosition.prerequisite is not None: # and calibratedPosition.prerequisite is not None:
     #         print("calibration item as prerequisite: " + str(calibratedPosition.prerequisite) + ': ' + str(positions[calibratedPosition.prerequisite]))
@@ -353,21 +370,22 @@ def analyzePositionsInOneFrame(cubes: [Cube], angle):
     # print_positions("positions after changes:", changed_positions)
     return positions
 
-def print_positions(analysis_name, positions):
-    print(analysis_name)
-    positionString = "{ "
+
+def log_positions(analysis_name, positions):
+    logging.info(analysis_name)
+    position_string = "{ "
     for key in positions:
         color = positions[key]
         if color is None:
-            positionString += str(key) + ": None,"
+            position_string += str(key) + ": None,"
             continue
-        positionString += str(key) + ": " + str(color.color_name) + ","
-    positionString += " }"
-    print(positionString)
+        position_string += str(key) + ": " + str(color.color_name) + ","
+    position_string += " }"
+    logging.info(position_string)
 
 
-def getCubesFromFrame(frame, angle, cv2):
-    print("----------- getColorOfFrame -----------")
+def get_cubes_from_frame(frame, angle, cv2):
+    logging.debug("----------- getColorOfFrame -----------")
     blue_contours = detect_color(frame, blue_lower, blue_upper)
     red_contours = detect_color(frame, red_lower1, red_upper1, red_lower2, red_upper2)
     yellow_contours = detect_color(frame, yellow_lower, yellow_upper)
@@ -377,40 +395,40 @@ def getCubesFromFrame(frame, angle, cv2):
     for cnt in blue_contours:
         x, y, w, h = cv2.boundingRect(cnt)
         cube = Cube(Color.BLUE, x, y, w, h)
-        cv2 = drawCube(cnt, cube, cv2, frame)
+        draw_cube(cnt, cube, cv2, frame)
         cubes.append(cube)
 
     for cnt in red_contours:
         x, y, w, h = cv2.boundingRect(cnt)
         cube = Cube(Color.RED, x, y, w, h)
-        cv2 = drawCube(cnt, cube, cv2, frame)
+        draw_cube(cnt, cube, cv2, frame)
         cubes.append(cube)
 
     for cnt in yellow_contours:
         x, y, w, h = cv2.boundingRect(cnt)
         cube = Cube(Color.YELLOW, x, y, w, h)
-        cv2 = drawCube(cnt, cube, cv2, frame)
+        draw_cube(cnt, cube, cv2, frame)
         cubes.append(cube)
 
-    cv2.imshow('Video', frame)
-    while (cv2.waitKey(1) & 0xFF != ord('q')):
-        continue
-    return [cv2, cubes]
+    if logging_level == logging.DEBUG:
+        cv2.imshow('Video', frame)
+        while cv2.waitKey(1) & 0xFF != ord('q'):
+            continue
+    return cubes
 
 
-def drawCube(cnt, cube, cv2, frame):
+def draw_cube(cnt, cube, cv2, frame):
     cv2.rectangle(frame, cube.left_top, cube.right_bottom, cube.color.rgb_value, 2)
-    cube.printValues()
+    cube.log_values()
     cv2.circle(frame, cube.center, 1, (255, 255, 255), -1)
     cv2.putText(frame, cube.color.color_name, cube.left_top, cv2.FONT_HERSHEY_SIMPLEX, 0.7, cube.color.rgb_value, 2)
-    drawContours(cnt, cv2, frame)
-    return cv2
+    draw_contours(cnt, cv2, frame)
 
 
-def drawContours(cnt, cv2, frame):
+def draw_contours(cnt, cv2, frame):
     epsilon = 0.04 * cv2.arcLength(cnt, True)
     approx = cv2.approxPolyDP(cnt, epsilon, True)
-    print(approx)
+    logging.debug(approx)
     cv2.drawContours(frame, [approx], -1, (255, 255, 255), 2)
 
 
@@ -421,12 +439,13 @@ End_Result = {
     Color.NONE.color_name: int
 }
 
-def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier|None]]]):
-    print("analyze_video_positions started")
+
+def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier | None]]]):
+    logging.debug("analyze_video_positions started")
     starting_point = {Color.RED.color_name: 0,
-             Color.BLUE.color_name: 0,
-             Color.YELLOW.color_name: 0,
-             Color.NONE.color_name: 0}
+                      Color.BLUE.color_name: 0,
+                      Color.YELLOW.color_name: 0,
+                      Color.NONE.color_name: 0}
     end_positions_percentages: Dict[int, End_Result] = {
         1: starting_point.copy(),
         2: starting_point.copy(),
@@ -440,29 +459,37 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier|
 
     for positions in video_positions:
         if positions is None:
-            print('positions was None')
+            logging.debug('positions was None')
             continue
-        print('positions: ' + str(positions))
+        msg = 'positions: ' + str(positions)
+        logging.debug(msg)
         for key, color in positions.items():
             if key is None:
-                print('key was None')
+                logging.debug('key was None')
                 continue
             if color is None:
-                print('color was None')
+                logging.debug('color was None')
                 continue
-            print('key: ' + str(key))
-            print('color: ' + str(color))
-            print('color.color_name' + str(color.color_name))
-            print('end_positions_percentages[key]: ' + str(end_positions_percentages[key]))
-            print('end_positions_percentages[key][color.color_name]: ' + str(end_positions_percentages[key][color.color_name]))
+            msg1 = 'key: ' + str(key)
+            logging.debug(msg1)
+            msg2 = 'color: ' + str(color)
+            logging.debug(msg2)
+            msg3 = 'color.color_name' + str(color.color_name)
+            logging.debug(msg3)
+            msg4 = 'end_positions_percentages[key]: ' + str(end_positions_percentages[key])
+            logging.debug(msg4)
+            msg5 = 'end_positions_percentages[key][color.color_name]: ' + str(
+                end_positions_percentages[key][color.color_name])
+            logging.debug(msg5)
             end_positions_percentages[key][color.color_name] += 25
 
-    print("end result percentages")
+    logging.debug("end result percentages")
     for end_position, colors in end_positions_percentages.items():
-        print(str(end_position) + ": " + str(colors))
+        msg6 = str(end_position) + ": " + str(colors)
+        logging.debug(msg6)
 
     end_result = defaultConfig.copy()
-    print("end result")
+    logging.info("end result")
     for end_position, colors in end_positions_percentages.items():
         most_probable_color = max(colors, key=colors.get)
 
@@ -471,7 +498,7 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier|
             end_result[end_position] = ''
         else:
             end_result[end_position] = most_probable_color
-    print(end_result)
+    logging.info(end_result)
     now = datetime.now().strftime('%Y-%m-%d.%H.%M.%S')
     file_name = 'end_result_' + str(now) + '.json'
     file_path = os.path.join('testdata', file_name)
@@ -479,13 +506,14 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier|
         json.dump(end_result, file)
 
 
-def analyze_cube_video(PATH):
+def analyze_cube_video(path):
     # VideoCapture-Objekt erstellen und Video-Datei laden
-    cap = cv2.VideoCapture(PATH)
+    cap = cv2.VideoCapture(path)
 
-    frameCount = 0
+    frame_count = 0
     angle = 0
-    video_positions: [Dict[int, Type[PositionIdentifier|None]]] = []
+    video_positions: [Dict[int, Type[PositionIdentifier | None]]] = []
+    frame = None
     while True:
         if angle > 270:
             break
@@ -494,23 +522,23 @@ def analyze_cube_video(PATH):
         if not ret:
             break
 
-        if frameCount != 0:
-            frameCount = frameCount - 1
+        if frame_count != 0:
+            frame_count = frame_count - 1
             continue
         else:
             # todo: check with angle detector whether we are good
-            frameCount = 220
+            frame_count = 220
 
-        [cv3, raw_cubes] = getCubesFromFrame(frame, angle, cv2)
-        cubes = splitBigCubes(raw_cubes)
-        video_positions.append(analyzePositionsInOneFrame(cubes, angle))
+        raw_cubes = get_cubes_from_frame(frame, angle, cv2)
+        cubes = split_big_cubes(raw_cubes)
+        video_positions.append(analyze_positions_in_one_frame(cubes, angle))
 
         angle = angle + 90
         # if angle >= 270:
         # todo: remove
-        break
+        # break
     analyze_video_positions(video_positions)
 
-    return frame
     cap.release()
     cv2.destroyAllWindows()
+    return frame
