@@ -1,6 +1,3 @@
-from datetime import datetime
-import json
-import os
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -502,14 +499,13 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
     return end_result
 
 
-def analyze_cube_video(path, i):
+def analyze_cube_positions_from_video(path):
     # VideoCapture-Objekt erstellen und Video-Datei laden
     cap = cv2.VideoCapture(path)
 
     frame_count = 0
     angle = 0
     video_positions: [Dict[int, Type[PositionIdentifier | None]]] = []
-    frame = None
     while True:
         if angle > 270:
             break
@@ -535,12 +531,8 @@ def analyze_cube_video(path, i):
         # break
     config = analyze_video_positions(video_positions)
 
-    time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    file_name = f"positions_config_{i}.json"
-    file_path = os.path.join('testdata', file_name)
-    with open(file_path, 'w') as file:
-        json.dump({'time': time, 'config': config}, file)
-
-    cap.release()
-    cv2.destroyAllWindows()
-    return frame
+    try:
+        cap.release()
+        cv2.destroyAllWindows()
+    finally:
+        return config
