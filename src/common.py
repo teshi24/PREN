@@ -23,18 +23,22 @@ for PATH in PATHS:
     logging.info(f"analyzed video: {PATH}")
     i = i+1
 
-    # angle = 45
-    # ref_area.get_image_by_angle(angle, PATH)
-    #
-    # angle = angle + 45
-    # ref_area.get_image_by_angle(angle, PATH)
-    #
-    # angle = angle + 45
-    # ref_area.get_image_by_angle(angle, PATH)
-    #
-    # angle = angle + 45
-    # ref_area.get_image_by_angle(angle, PATH)
+    angle = 45
+    frame = ref_area.get_image_by_angle(angle, PATH)
 
+    angle1 = angle + 90
+    frame1 = ref_area.get_image_by_angle(angle1, PATH)
+
+    angle2 = angle1 + 90
+    frame2 = ref_area.get_image_by_angle(angle2, PATH)
+
+    angle3 = angle2 + 90
+    frame3 = ref_area.get_image_by_angle(angle3, PATH)
+
+    positions = pa.analyze_cube_positions_per_frames(frame, angle, frame1, angle1, frame2, angle2, frame3, angle3)
+    time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    positions_json = {'time': time, 'config': positions}
+    write_to_file(positions_json, 10+i)
 
     positions = pa.analyze_cube_positions_from_video(PATH)
     time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

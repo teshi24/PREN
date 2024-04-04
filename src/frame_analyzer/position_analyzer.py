@@ -183,15 +183,16 @@ class CalibratedPositions(CalibratedPosition, Enum):
     DEGREE_180 = calibratedPositions180Degree,
     DEGREE_270 = calibratedPositions270Degree,
 
+    # todo: cleanup angle
     @classmethod
     def from_angle(cls, angle):
-        if angle == 0:
+        if angle == 0 or angle == 45:
             return cls.DEGREE_0
-        elif angle == 90:
+        elif angle == 90 or angle == 135:
             return cls.DEGREE_90
-        elif angle == 180:
+        elif angle == 180 or angle == 225:
             return cls.DEGREE_180
-        elif angle == 270:
+        elif angle == 270 or angle == 315:
             return cls.DEGREE_270
         else:
             raise ValueError(f"Invalid angle: {angle}")
@@ -366,6 +367,29 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
     return end_result
 
 
+def analyze_cube_positions_per_frames(frame, angle, frame1, angle1, frame2, angle2, frame3, angle3):
+    video_positions: [Dict[int, Type[PositionIdentifier | None]]] = []
+    frame_positions = analyze_frame(angle, frame)
+    video_positions.append(frame_positions)
+
+    frame_positions = analyze_frame(angle1, frame1)
+    video_positions.append(frame_positions)
+
+    frame_positions = analyze_frame(angle2, frame2)
+    video_positions.append(frame_positions)
+
+    frame_positions = analyze_frame(angle3, frame3)
+    video_positions.append(frame_positions)
+
+    return analyze_video_positions(video_positions)
+
+
+def analyze_frame(angle, frame):
+    raw_cubes = detect_colored_cubes(frame, cv2)
+    cubes = split_big_cubes(raw_cubes)
+    return analyze_positions_in_one_frame(cubes, angle)
+
+
 def analyze_cube_positions_from_video(path):
     # VideoCapture-Objekt erstellen und Video-Datei laden
     cap = cv2.VideoCapture(path)
@@ -388,7 +412,10 @@ def analyze_cube_positions_from_video(path):
             # todo: check with angle detector whether we are good
             frame_count = 220
 
-        analyze_frame(angle, frame, video_positions)
+        raw_cubes = detect_colored_cubes(frame, cv2)
+        cubes = split_big_cubes(raw_cubes)
+        frame_positions = analyze_positions_in_one_frame(cubes, angle)
+        video_positions.append(frame_positions)
 
         angle = angle + 90
         # if angle >= 270:
@@ -401,9 +428,3 @@ def analyze_cube_positions_from_video(path):
         cv2.destroyAllWindows()
     finally:
         return config
-
-
-def analyze_frame(angle, frame, video_positions):
-    raw_cubes = detect_colored_cubes(frame, cv2)
-    cubes = split_big_cubes(raw_cubes)
-    video_positions.append(analyze_positions_in_one_frame(cubes, angle))
