@@ -1,60 +1,44 @@
 import math
+import queue
 import cv2
-import time
-from env import PATH
+import numpy as np
 
-def find_centeroid_white_Area(frame):
+def find_centeroid_white(image):
+    # Convert image to HSV color space
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    # Convert the frame to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Define range of white color in HSV
+    # These values can be adjusted to be more specific for the white color in the images
+    lower_white = np.array([0, 0, 168], dtype=np.uint8)
+    upper_white = np.array([172, 111, 255], dtype=np.uint8)
 
-    # Threshold the frame to get the white areas
-    _, binary = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)  # You might need to adjust the threshold value
+    # Threshold the HSV image to get only white colors
+    mask = cv2.inRange(hsv, lower_white, upper_white)
 
-    # Compute the moments of the binary image
-    moments = cv2.moments(binary)
+    # Find contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Ensure the area is not zero to avoid division by zero
-    if moments['m00'] != 0:
-        # Calculate the x and y coordinates of the centroid
-        cX = int(moments['m10'] / moments['m00'])
-        cY = int(moments['m01'] / moments['m00'])
-    else:
-        cX, cY = None, None
+    # Filter out very small contours that are unlikely to be the white area
+    contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 100]
 
-    return cX,cY
-
-def find_circle_center(frame):
-
-    # Convert the image to gray scale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    # Apply GaussianBlur to remove noise and smooth the image
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Threshold the image to create a binary image for contour detection
-    _, thresh = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY)
-
-    # Find contours in the thresholded image
-    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Find the largest contour, which should be the black circle
+    # Assuming the largest contour is the white area
     largest_contour = max(contours, key=cv2.contourArea)
 
-    # Calculate the moments of the largest contour to find the center
-    M = cv2.moments(largest_contour)
-    if M["m00"] != 0:
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
+    # Compute the centroid of the largest contour
+    moments = cv2.moments(largest_contour)
+    if moments['m00'] != 0:
+        cx = int(moments['m10'] / moments['m00'])  # cx = M10/M00
+        cy = int(moments['m01'] / moments['m00'])  # cy = M01/M00
     else:
-        cX, cY = None, None
+        # Set centroid to the center of the image if contour is not found
+        cx, cy = image.shape[1] // 2, image.shape[0] // 2
 
-    return cX, cY-55
+    return cx, cy,
 
 
 def calculate_angle(frame):
-    pt1 = find_centeroid_white_Area(frame)
-    pt2 = find_circle_center(frame)
+    pt1 = find_centeroid_white(frame)
+    pt2 = 641, 277  # TODO Dynamic or Config File
 
     # Calculate the difference between the two points
     delta_x = pt2[0] - pt1[0]
@@ -64,16 +48,29 @@ def calculate_angle(frame):
     angle_radians = math.atan2(delta_y, delta_x)
     angle_degrees = math.degrees(angle_radians)
 
-    return int(angle_degrees)+180
+    return int(angle_degrees) + 180
 
-def get_image_by_angle(angle,mp4path):
-    cap = cv2.VideoCapture(mp4path)
-    while cap.isOpened():
+
+def get_image_and_angle(queuename):
+    username = 'pren'
+    password = '463997'
+    ip_address = '147.88.48.131'
+    profile = 'pren_profile_med'
+    cap = cv2.VideoCapture('rtsp://' +
+                           username + ':' +
+                           password +
+                           '@' + ip_address +
+                           '/axis-media/media.amp' +
+                           '?streamprofile=' + profile)
+    if cap is None or not cap.isOpened():
+        print('Warning: unable to open video source: ', ip_address)
+        return None
+    while True:
         ret, frame = cap.read()
-        if calculate_angle(frame) == angle:
-            return frame
         if not ret:
+            print('Warning: unable to read next frame')
             break
+        queuename.put((frame, calculate_angle(frame)))
 
 
 
