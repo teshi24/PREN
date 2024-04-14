@@ -381,14 +381,16 @@ def analyze_cube_positions_per_frames(frame, angle, frame1, angle1, frame2, angl
     frame_positions = analyze_frame(angle3, frame3)
     video_positions.append(frame_positions)
 
-    return analyze_video_positions(video_positions)
-
+    # todo: reactivate
+    # return analyze_video_positions(video_positions)
+    return []
 
 def analyze_frame(angle, frame):
     raw_cubes = detect_colored_cubes(frame, cv2)
     cubes = split_big_cubes(raw_cubes)
-    return analyze_positions_in_one_frame(cubes, angle)
-
+    # todo: reactivate
+    # return analyze_positions_in_one_frame(cubes, angle)
+    return []
 
 def analyze_cube_positions_from_video(path):
     # VideoCapture-Objekt erstellen und Video-Datei laden

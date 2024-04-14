@@ -1,7 +1,14 @@
+import logging
 import math
-import queue
+from queue import Queue
+from threading import Event
+
 import cv2
 import numpy as np
+
+allowed_angles = [0, 39, 40, 41, 42, 43, 44, 45, 135, 225, 315]
+allowed_angles = [0, 39, 40, 41, 42, 43, 44, 45, 135, 225, 315]
+
 
 def find_centeroid_white(image):
     # Convert image to HSV color space
@@ -20,6 +27,7 @@ def find_centeroid_white(image):
 
     # Filter out very small contours that are unlikely to be the white area
     contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 100]
+
 
     # Assuming the largest contour is the white area
     largest_contour = max(contours, key=cv2.contourArea)
@@ -51,7 +59,9 @@ def calculate_angle(frame):
     return int(angle_degrees) + 180
 
 
-def get_image_and_angle(queuename):
+def get_image_and_angle(result_queue: Queue, running: Event):
+    logging.debug('trying to get image')
+
     username = 'pren'
     password = '463997'
     ip_address = '147.88.48.131'
@@ -63,14 +73,32 @@ def get_image_and_angle(queuename):
                            '/axis-media/media.amp' +
                            '?streamprofile=' + profile)
     if cap is None or not cap.isOpened():
-        print('Warning: unable to open video source: ', ip_address)
+        logging.warning('Warning: unable to open video source: ', ip_address)
         return None
-    while True:
+
+    logging.debug('image analysis starting...')
+    i = 0
+    last_angle = None
+    while running.is_set():
         ret, frame = cap.read()
         if not ret:
-            print('Warning: unable to read next frame')
+            logging.warning('Warning: unable to read next frame')
             break
-        queuename.put((frame, calculate_angle(frame)))
 
+        i += 1
+        cv2.imwrite(f'test_frame_{i}.jpg', frame)
 
+        logging.debug('angle calculating...')
+        angle = calculate_angle(frame)
+        logging.debug('angle calculated')
+        if angle is last_angle:
+            logging.warning('Warning: still the same frame according to angle')
+            # todo: this is wrong, it saved a different frame everytime
+            continue
+        last_angle = angle
+        if angle not in allowed_angles:
+            logging.warning(f'Warning: angle ({angle}) not in allowed range')
+            continue
 
+        logging.debug(f'angle was ok {angle}')
+        result_queue.put((frame, angle))
