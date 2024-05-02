@@ -72,10 +72,22 @@ for PATH in PATHS:
     logging.info(f"analyzed video: {PATH}")
     i = i + 1
 
-    positions = pa.analyze_cube_positions_from_video(PATH)
-    time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    positions_json = {'time': time, 'config': positions}
-    write_to_file(positions_json, i)
+    # positions = pa.analyze_cube_positions_from_video(PATH)
+    # time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # positions_json = {'time': time, 'config': positions}
+    # write_to_file(positions_json, i)
+    #
+    ## todo: remove dummy positions
+    positions = {
+    "1": "red",
+    "2": "blue",
+    "3": "red",
+    "4": "yellow",
+    "5": "",
+    "6": "",
+    "7": "yellow",
+    "8": "red"
+    }
 
     path = find_best_path(positions)
 
