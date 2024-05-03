@@ -1,18 +1,5 @@
-from typing import Dict, Type
+import logging
 import heapq
-from src.frame_analyzer.position_analyzer import PositionIdentifier
-
-## todo: replace with any config, in case we were not able to find a solution
-defaultConfig: Dict[int, Type[PositionIdentifier | None]] = {
-    1: None,
-    2: None,
-    3: None,
-    4: None,
-    5: None,
-    6: None,
-    7: None,
-    8: None
-}
 
 position_graph = {
     'blue1': [('yellow2', 0), ('red3', 0),
@@ -40,6 +27,27 @@ position_graph = {
     'red2': [('blue4', 0), ('yellow1', 0),
              ('red3', 25), ('red4', 50), ('red1', 75)],
 }
+start_nodes_by_position = {
+    0: 'blue1',
+    25: 'blue2',
+    50: 'blue3',
+    75: 'blue4',
+}
+action_mapping = {
+    0: 4,  # stay
+    25: 1,  # forward 90 degrees
+    50: 2,  # forward 180 degrees
+    75: 3  # backwards 90 degrees
+}
+color_mapping = {
+    'blue': 1,
+    'yellow': 2,
+    'red': 3
+}
+
+
+def initialize_start_node(current_position):
+    return start_nodes_by_position[current_position]
 
 
 def get_goal_positions_by_level(positions, level):
@@ -55,52 +63,77 @@ def get_goal_positions_by_level(positions, level):
 
     return [value + str(key) for key, value in result.items()]
 
-def find_best_path(positions):
-    start_node = 'blue1'
-    print(positions)
-    level1 = get_goal_positions_by_level(positions, 0)
-    print(level1)
 
-    for pos in level1:
+def get_as_commands(costs, start_position):
+    logging.debug('------ path_finder.get_as_commands start ------')
+    position = start_position
+    commands = []
+    for action, colors in sorted(costs.items()):
+        logging.debug(f'{action}: {colors}')
+        colors_len = len(colors)
+        if colors_len:
+            action_to_take = (action - position) % 100
+            logging.debug(f'action to take: {action_to_take}')
+            commands.append(action_mapping[action_to_take])
+            position = (position + action) % 100
+            for i in range(colors_len):
+                color = colors[i][:-1]
+                logging.debug(f'color to push: {color}')
+                commands.append(color_mapping[color])
+                if i < colors_len - 1:
+                    logging.debug(f'stay')
+                    commands.append(action_mapping[0])
+    logging.debug(f'commands: {commands}')
+    logging.debug(f'position: {position}')
+    logging.debug('------- path_finder.get_as_commands end -------')
+    return commands, position
+
+
+def get_commands_by_level(positions, level, start_position):
+    goal_positions = get_goal_positions_by_level(positions, level)
+    logging.debug(goal_positions)
+    start_node = initialize_start_node(start_position)
+    logging.debug(f'start node {start_node}')
+
+    costs = {
+        0: [],
+        25: [],
+        50: [],
+        75: []
+    }
+
+    for pos in goal_positions:
         goal_node = pos
-        print(f'start {start_node} to goal {goal_node}')
-        total_cost, path_with_costs = bidirectional_uniform_cost_search_with_costs(position_graph, start_node, goal_node)
+        logging.debug(f'start {start_node} to goal {goal_node}')
+        total_cost, path_with_costs = bidirectional_uniform_cost_search_with_costs(position_graph, start_node,
+                                                                                   goal_node)
         if path_with_costs:
-            print("Total Cost from", start_node, "to", goal_node, ":", total_cost)
-            # print("Path with Step Costs:")
-            # for node, step_cost in path_with_costs:
-            #     print("Node:", node, "- Step Cost:", step_cost)
+            logging.debug("Total Cost from", start_node, "to", goal_node, ":", total_cost)
+            logging.debug("Path with Step Costs:")
+            for node, step_cost in path_with_costs:
+                logging.debug("Node:", node, "- Step Cost:", step_cost)
+            logging.debug('--------------')
+            costs[total_cost].append(goal_node)
         else:
-            print("No path found from", start_node, "to", goal_node)
+            logging.debug("No path found from", start_node, "to", goal_node)
 
-    level2 = get_goal_positions_by_level(positions, 1)
-    print(level2)
-    ## todo: also handle level2
+    logging.debug(costs)
 
-    # start_node = 'red1'
-    # goal_node = 'yellow4'
-    # ## should be direct and 0 - it is, just total costs are fucked up
-    # start_node = 'red1'
-    # goal_node = 'yellow1'
-    # # ## should be over yellow4 0 and yellow1 = 25 - it is
-    # start_node = 'blue1'
-    # goal_node = 'blue4'
-    # # ## should be direct and 75 - it was
-    # start_node = 'yellow4'
-    # goal_node = 'red4'
-    # # ## should be over red1 0 and red4 = 75
-    # start_node = 'yellow2'
-    # goal_node = 'red2'
-    # should be 75
-    #
-    # total_cost, path_with_costs = bidirectional_uniform_cost_search_with_costs(position_graph, start_node, goal_node)
-    # if path_with_costs:
-    #     print("Total Cost from", start_node, "to", goal_node, ":", total_cost)
-    #     print("Path with Step Costs:")
-    #     for node, step_cost in path_with_costs:
-    #         print("Node:", node, "- Step Cost:", step_cost)
-    # else:
-    #     print("No path found from", start_node, "to", goal_node)
+    return get_as_commands(costs, start_position)
+
+
+def find_best_path(positions):
+    start_position = 0
+    logging.info(f'find_best_path, provided positions: {positions}')
+
+    commands_level1, new_start_position = get_commands_by_level(positions, 0, start_position)
+    commands_level2, end_position = get_commands_by_level(positions, 1, new_start_position)
+
+    commands = commands_level1 + commands_level2
+    logging.info(f'commands: {commands}')
+    logging.info(f'end position: {end_position}')
+
+    return commands
 
 
 def bidirectional_uniform_cost_search_with_costs(graph, start, goal):
