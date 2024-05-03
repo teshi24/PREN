@@ -79,14 +79,14 @@ for PATH in PATHS:
     #
     ## todo: remove dummy positions
     positions = {
-    "1": "red",
-    "2": "blue",
-    "3": "red",
-    "4": "yellow",
-    "5": "",
-    "6": "",
-    "7": "yellow",
-    "8": "red"
+    1: "red",
+    2: "blue",
+    3: "red",
+    4: "yellow",
+    5: "",
+    6: "",
+    7: "yellow",
+    8: "red"
     }
 
     path = find_best_path(positions)
