@@ -35,9 +35,9 @@ start_nodes_by_position = {
 }
 action_mapping = {
     0: 4,  # stay
-    25: 1,  # forward 90 degrees
+    25: 1,  # forward 90 degrees, clock-wise
     50: 2,  # forward 180 degrees
-    75: 3  # backwards 90 degrees
+    75: 3  # backwards 90 degrees, counter clock-wise
 }
 color_mapping = {
     'blue': 1,
@@ -68,14 +68,16 @@ def get_as_commands(costs, start_position):
     logging.debug('------ path_finder.get_as_commands start ------')
     position = start_position
     commands = []
+    accumulated_costs = 0
     for action, colors in sorted(costs.items()):
         logging.debug(f'{action}: {colors}')
         colors_len = len(colors)
         if colors_len:
-            action_to_take = (action - position) % 100
+            action_to_take = action - accumulated_costs
+            accumulated_costs = action
             logging.debug(f'action to take: {action_to_take}')
             commands.append(action_mapping[action_to_take])
-            position = (position + action) % 100
+            position = (position + action_to_take) % 100
             for i in range(colors_len):
                 color = colors[i][:-1]
                 logging.debug(f'color to push: {color}')
@@ -129,7 +131,8 @@ def find_best_path(positions):
     commands_level1, new_start_position = get_commands_by_level(positions, 0, start_position)
     commands_level2, end_position = get_commands_by_level(positions, 1, new_start_position)
 
-    commands = commands_level1 + commands_level2
+    command_go_back_to_start = [action_mapping[(0 - end_position) % 100]]
+    commands = commands_level1 + commands_level2 + command_go_back_to_start
     logging.info(f'commands: {commands}')
     logging.info(f'end position: {end_position}')
 
@@ -165,5 +168,4 @@ def bidirectional_uniform_cost_search_with_costs(graph, start, goal):
         total_cost += step_cost
         current_node = parent_node
     forward_path.insert(0, (start, 0))  # Add start node with cost 0
-
     return total_cost, forward_path
