@@ -1,7 +1,7 @@
 import queue
 import threading
 
-from env import PATHS, logging_level
+from env import logging_level
 import logging
 from frame_analyzer import position_analyzer as pa
 from datetime import datetime
