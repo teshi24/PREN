@@ -392,7 +392,7 @@ def analyze_frame(angle, frame):
     # return analyze_positions_in_one_frame(cubes, angle)
     return []
 
-def analyze_cube_positions_from_video(path):
+def analyze_cube_positions_from_video(path) -> Dict[int, Type[PositionIdentifier | None]]:
     # VideoCapture-Objekt erstellen und Video-Datei laden
     cap = cv2.VideoCapture(path)
 
