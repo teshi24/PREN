@@ -131,7 +131,7 @@ def find_best_path(positions):
     commands_level1, new_start_position = get_commands_by_level(positions, 0, start_position)
     commands_level2, end_position = get_commands_by_level(positions, 1, new_start_position)
 
-    command_go_back_to_start = [action_mapping[(0 - end_position) % 100]]
+    command_go_back_to_start = [action_mapping[(0 - end_position) % 100], 0]
     commands = commands_level1 + commands_level2 + command_go_back_to_start
     logging.info(f'commands: {commands}')
     logging.info(f'end position: {end_position}')
