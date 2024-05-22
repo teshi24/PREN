@@ -1,104 +1,117 @@
 import logging
-import math
-from queue import Queue
-from threading import Event
-
 import cv2
-import numpy as np
+import queue
 
-allowed_angles = [0, 39, 40, 41, 42, 43, 44, 45, 135, 225, 315]
-allowed_angles = [0, 39, 40, 41, 42, 43, 44, 45, 135, 225, 315]
+# Weisser Farbbereich in BGR
+color_range = ((190, 190, 190), (255, 255, 255))
+def get_image_and_angle(frame_queue):
+    """
+    Funktion, um ein Bild von einer RTSP-Quelle zu erhalten und die Koordinaten
+    auf das Vorhandensein bestimmter Farben zu überprüfen. Wenn eine passende
+    Farbe gefunden wird, wird das entsprechende Frame und der Name des Koordinatensets
+    in eine Queue geschrieben.
 
+    :param frame_queue: Queue zum Speichern von Frames und den zugehörigen Namen
+    """
+    logging.debug('Trying to get image')
 
-def find_centeroid_white(image):
-    # Convert image to HSV color space
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-    # Define range of white color in HSV
-    # These values can be adjusted to be more specific for the white color in the images
-    lower_white = np.array([0, 0, 168], dtype=np.uint8)
-    upper_white = np.array([172, 111, 255], dtype=np.uint8)
-
-    # Threshold the HSV image to get only white colors
-    mask = cv2.inRange(hsv, lower_white, upper_white)
-
-    # Find contours in the mask
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Filter out very small contours that are unlikely to be the white area
-    contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 100]
-
-
-    # Assuming the largest contour is the white area
-    largest_contour = max(contours, key=cv2.contourArea)
-
-    # Compute the centroid of the largest contour
-    moments = cv2.moments(largest_contour)
-    if moments['m00'] != 0:
-        cx = int(moments['m10'] / moments['m00'])  # cx = M10/M00
-        cy = int(moments['m01'] / moments['m00'])  # cy = M01/M00
-    else:
-        # Set centroid to the center of the image if contour is not found
-        cx, cy = image.shape[1] // 2, image.shape[0] // 2
-
-    return cx, cy,
-
-
-def calculate_angle(frame):
-    pt1 = find_centeroid_white(frame)
-    pt2 = 641, 277  # TODO Dynamic or Config File
-
-    # Calculate the difference between the two points
-    delta_x = pt2[0] - pt1[0]
-    delta_y = pt2[1] - pt1[1]
-
-    # Calculate the angle in radians and then convert to degrees
-    angle_radians = math.atan2(delta_y, delta_x)
-    angle_degrees = math.degrees(angle_radians)
-
-    return int(angle_degrees) + 180
-
-
-def get_image_and_angle(result_queue: Queue, running: Event):
-    logging.debug('trying to get image')
-
-    username = 'pren'
-    password = '463997'
-    ip_address = '147.88.48.131'
-    profile = 'pren_profile_med'
-    cap = cv2.VideoCapture('rtsp://' +
-                           username + ':' +
-                           password +
-                           '@' + ip_address +
-                           '/axis-media/media.amp' +
-                           '?streamprofile=' + profile)
+    # RTSP-Zugangsdaten und Kameraeinstellungen
+    cap = setup_video_capture('pren', '463997', '147.88.48.131', 'pren_profile_med')
     if cap is None or not cap.isOpened():
-        logging.warning('Warning: unable to open video source: ', ip_address)
+        logging.warning('Warning: unable to open video source')
         return None
 
-    logging.debug('image analysis starting...')
-    i = 0
-    last_angle = None
-    while running.is_set():
+    logging.debug('Image analysis starting...')
+
+    coordinate_sets = get_coordinate_sets()
+    checked_sets = set()  # Set zur Verfolgung der bereits überprüften Koordinatensets
+
+    while True:
         ret, frame = cap.read()
         if not ret:
             logging.warning('Warning: unable to read next frame')
             break
 
-        i += 1
-        cv2.imwrite(f'test_frame_{i}.jpg', frame)
+        for coordinates, name in coordinate_sets:
+            if name not in checked_sets:
+                results = check_coordinates_in_color_range(frame, coordinates, color_range)
+                print(f"Results for {name}: {results}")
 
-        logging.debug('angle calculating...')
-        angle = calculate_angle(frame)
-        logging.debug('angle calculated')
-        if angle is last_angle:
-            logging.warning('Warning: still the same frame according to angle')
-            # todo: this is wrong, it saved a different frame everytime
-            continue
-        last_angle = angle
-        if angle not in allowed_angles:
-            logging.warning(f'Warning: angle ({angle}) not in allowed range')
-            continue
+                if all(results):
+                    frame_queue.put((frame, name))
+                    checked_sets.add(name)
+                    break
 
-        logging.debug(f'angle was ok {angle}')
-        result_queue.put((frame, angle))
+        if len(checked_sets) == len(coordinate_sets):
+            break
+
+
+def setup_video_capture(username, password, ip_address, profile):
+    """
+    Erstellt ein VideoCapture-Objekt für die angegebene RTSP-Quelle.
+
+    :param username: Benutzername für die RTSP-Quelle
+    :param password: Passwort für die RTSP-Quelle
+    :param ip_address: IP-Adresse der RTSP-Quelle
+    :param profile: Streamprofil für die RTSP-Quelle
+    :return: VideoCapture-Objekt
+    """
+    return cv2.VideoCapture('rtsp://' +
+                            username + ':' +
+                            password +
+                            '@' + ip_address +
+                            '/axis-media/media.amp' +
+                            '?streamprofile=' + profile)
+
+
+def get_coordinate_sets():
+    """
+    Gibt die Liste der Koordinatensets und ihre Namen zurück.
+
+    :return: Liste der Koordinatensets und ihre Namen
+    """
+    coordinatesur = [(753, 261), (970, 260), (753, 91)]
+    coordinatesul = [(550, 84), (434, 260), (326, 260), (544,203)] #TODO koordinaten hinzufügen für bessere präzision
+    coordinatesdr = [(655, 333), (655, 533), (846, 272)]
+    coordinatesdl = [(330, 261), (500, 261), (542,150)]
+    return [
+        (coordinatesul, "315"),
+        (coordinatesur, "45"),
+        (coordinatesdl, "135"),
+        (coordinatesdr, "225")
+    ]
+
+
+def is_color_in_range(color, color_range):
+    """
+    Überprüft, ob eine Farbe innerhalb eines bestimmten Farbbereichs liegt.
+
+    :param color: Ein Tupel (B, G, R) der Farbe
+    :param color_range: Ein Tupel ((B_min, G_min, R_min), (B_max, G_max, R_max))
+    :return: True, wenn die Farbe im Bereich liegt, sonst False
+    """
+    (B, G, R) = color
+    (B_min, G_min, R_min), (B_max, G_max, R_max) = color_range
+    return B_min <= B <= B_max and G_min <= G_max and R_min <= R_max
+
+
+def check_coordinates_in_color_range(image, coordinates, color_range):
+    """
+    Überprüft, ob die Farben an den gegebenen Koordinaten innerhalb eines Farbbereichs liegen.
+
+    :param image: Eingabebild
+    :param coordinates: Liste von Koordinaten (x, y)
+    :param color_range: Ein Tupel ((B_min, G_min, R_min), (B_max, G_max, R_max))
+    :return: Liste von bools, die angeben, ob die Farbe an jeder Koordinate im Bereich liegt
+    """
+    results = []
+    for coord in coordinates:
+        x, y = coord
+        color = image[y, x]
+        in_range = is_color_in_range(color, color_range)
+        results.append(in_range)
+
+    return results
+
+
+
