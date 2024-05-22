@@ -61,11 +61,14 @@ def analyze_frames(frame_queue: queue):
 
     logging.info('positions written to file')
 
+
 def get_energy_consumption_dummy():
     return 100
 
+
 def update_display_dummy(energy_consumption):
     print(f"Dummy update_display: Energy Consumption: {energy_consumption} wh")
+
 
 def get_image_and_angle_dummy_from_video(result_queue: queue.Queue, running: threading.Event):
     logging.debug('trying to get image')
@@ -131,18 +134,9 @@ class I2CSignalInterface(SignalInterface):
             feedback = self.bus.read_byte(self.arduino_i2c_address)
             if feedback:
                 return
-            
 
 
 class DummySignalInterface(SignalInterface):
-    def wait_for_start_signal(self):
-        print("Press 's' to send start signal")
-        while True:
-            key = input()
-            if key == 's':
-                return
-
-#class DummySignalInterface(SignalInterface):
     def wait_for_start_signal(self):
         print("Press 's' to send start signal")
         while True:
@@ -156,8 +150,7 @@ class DummySignalInterface(SignalInterface):
             key = input()
             if key == 'f':
                 return
-            
-    
+
 
 class Main:
     def __init__(self, signal_interface, frame_detection_func, display_func, energy_func):
@@ -165,7 +158,7 @@ class Main:
         self.frame_detection_func = frame_detection_func
         self.display_func = display_func
         self.energy_func = energy_func
-        
+
     def main(self):
         while True:
             self.signal_interface.wait_for_start_signal()
@@ -194,6 +187,7 @@ class Main:
 
             self.signal_interface.wait_for_feedback()
 
+
 if dummys:
     signalInterface = DummySignalInterface()
     frame_detection_func = get_image_and_angle_dummy_from_video
@@ -203,5 +197,7 @@ else:
     raise NotImplementedError('need to connect the IC2-IF ;)')
     signalInterface = I2CSignalInterface(None, None)
     frame_detection_func = get_image_and_angle
+    update_display_func = update_display
+    energy_func = get_energy_consumption
 
-Main(signalInterface, frame_detection_func).main()
+Main(signalInterface, frame_detection_func, display_func, energy_func).main()
