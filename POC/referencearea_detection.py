@@ -4,7 +4,7 @@ import queue
 
 # Weisser Farbbereich in BGR
 color_range = ((190, 190, 190), (255, 255, 255))
-def get_image_and_angle(frame_queue):
+def get_image_and_angle(frame_queue,event):
     """
     Funktion, um ein Bild von einer RTSP-Quelle zu erhalten und die Koordinaten
     auf das Vorhandensein bestimmter Farben zu überprüfen. Wenn eine passende
@@ -38,6 +38,8 @@ def get_image_and_angle(frame_queue):
                 print(f"Results for {name}: {results}")
 
                 if all(results):
+                    cv2.imshow("frame",frame)
+                    cv2.waitKey(0)
                     frame_queue.put((frame, name))
                     checked_sets.add(name)
                     break
@@ -75,10 +77,10 @@ def get_coordinate_sets():
     coordinatesdr = [(655, 333), (655, 533), (846, 272)]
     coordinatesdl = [(330, 261), (500, 261), (542,150)]
     return [
-        (coordinatesul, "315"),
-        (coordinatesur, "45"),
-        (coordinatesdl, "135"),
-        (coordinatesdr, "225")
+        (coordinatesul, 315),
+        (coordinatesur, 45),
+        (coordinatesdl, 135),
+        (coordinatesdr, 225)
     ]
 
 
@@ -113,5 +115,7 @@ def check_coordinates_in_color_range(image, coordinates, color_range):
 
     return results
 
+
+get_image_and_angle(queue.Queue(),None)
 
 
