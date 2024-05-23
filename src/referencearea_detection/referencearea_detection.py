@@ -93,7 +93,7 @@ def draw_median_lines(frame, lines_with_angles):
         return None
     if logging_level == logging.DEBUG:
         cv2.line(frame, (int(median_line[0]), int(median_line[1])),
-                 (int(median_line[2]), int(median_line[3])), (0, 0, 255), 2)
+                 (int(median_line[2]), int(median_line[3])), (0, 0, 0), 2)
     return median_line
 
 
