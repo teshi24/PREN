@@ -13,7 +13,8 @@ import os
 
 from src.path_finder.path_finder import find_best_path
 from src.referencearea_detection.referencearea_detection import get_image_and_angle
-from src.Display.progress_bar import update_display
+
+# from src.Display.progress_bar import update_display
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging_level)
 ## todo: remove dummies / set it to False
@@ -171,6 +172,10 @@ class Main:
             running = threading.Event()
             running.set()
             find_frame_thread = threading.Thread(target=self.frame_detection_func, args=(frame_queue, running))
+            # find_frame_thread = threading.Thread(target=self.frame_detection_func, args=[frame_queue])
+            # 315 - img 0
+            # 135 - img 1
+            #
             find_frame_thread.start()
 
             analyze_frames_thread = threading.Thread(target=analyze_frames, args=[frame_queue])
@@ -190,14 +195,15 @@ class Main:
 
 if dummys:
     signalInterface = DummySignalInterface()
-    frame_detection_func = get_image_and_angle_dummy_from_video
-    update_display_func = update_display_dummy
+    # frame_detection_func = get_image_and_angle_dummy_from_video
+    frame_detection_func = get_image_and_angle
+    display_func = update_display_dummy
     energy_func = get_energy_consumption_dummy
 else:
     raise NotImplementedError('need to connect the IC2-IF ;)')
     signalInterface = I2CSignalInterface(None, None)
     frame_detection_func = get_image_and_angle
-    update_display_func = update_display
+    display_func = update_display
     energy_func = get_energy_consumption
 
 Main(signalInterface, frame_detection_func, display_func, energy_func).main()
