@@ -13,10 +13,12 @@ import os
 import time
 
 # Module importieren
-from path_finder.path_finder import find_best_path
-from referencearea_detection.referencearea_detection import get_image_and_angle
+from src.path_finder.path_finder import find_best_path
+from src.referencearea_detection.referencearea_detection import get_image_and_angle
 from Display.progress_bar import show_progress_bar
 from Display.energy_consumption import show_energy_consumption
+
+# from src.Display.progress_bar import update_display
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging_level)
 ## todo: remove dummies / set it to False
@@ -73,8 +75,8 @@ def update_energy_consumption_dummy(energy_consumption):
 
 def update_progress_bar_dummy():
     for i in range(11):
-        print(f"Progressbar bei {10 * i} %") 
-        time.sleep(1) 
+        print(f"Progressbar bei {10 * i} %")
+        time.sleep(1)
 
 
 def get_image_and_angle_dummy_from_video(result_queue: queue.Queue, running: threading.Event):
@@ -172,7 +174,7 @@ class Main:
 
             progress_bar_thread = threading.Thread(target=self.progress_bar_func)
             progress_bar_thread.start()
-            
+
             logging.info('open queue')
             frame_queue = queue.Queue()
 
@@ -193,7 +195,7 @@ class Main:
             energy_consumption = self.energy_func()
             energy_consumption_thread = threading.Thread(target=update_energy_consumption_dummy, args=(energy_consumption,))
             energy_consumption_thread.start()
-            
+
             analyze_frames_thread.join()
             running.clear()
             find_frame_thread.join()
@@ -204,7 +206,7 @@ class Main:
 
 if dummys:
     signalInterface = DummySignalInterface()
-    frame_detection_func = get_image_and_angle_dummy_from_video
+    frame_detection_func = get_image_and_angle
     progress_bar_func = update_progress_bar_dummy
     energy_func = get_energy_consumption_dummy
 else:

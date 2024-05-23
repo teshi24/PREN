@@ -195,6 +195,8 @@ class CalibratedPositions(CalibratedPosition, Enum):
         elif angle == 270 or angle == 315:
             return cls.DEGREE_270
         else:
+            return cls.DEGREE_270
+            # todo: fix again
             raise ValueError(f"Invalid angle: {angle}")
 
 
