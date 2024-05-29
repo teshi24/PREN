@@ -14,6 +14,7 @@ class PositionIdentifier:
                  prerequisite: int | None = None,
                  hidden_by: [[int]] = None):
         self.calibrationCube = calibration_cube
+        # todo: check tolerances
         self.toleranceXAxis = 35
         self.toleranceYAxis = 85
         self.position = position_in_frame
@@ -114,16 +115,36 @@ defaultConfig: Dict[int, Type[PositionIdentifier | None]] = {
 
 
 # extra sortiert, damit andere Reihenfolge entdeckt wird
+# when analyzing from videos
+# calibratedPositions0Degree = {
+#     8: PositionIdentifier(Cube(Color.NONE, 770, 177, 200, 274), 8, 4),
+#     5: PositionIdentifier(Cube(Color.NONE, 964, 183, 210, 258), 5, 1),
+#     7: PositionIdentifier(Cube(Color.NONE, 780, 98, 186, 126), 7, 3),
+#     6: PositionIdentifier(Cube(Color.NONE, 952, 100, 196, 100), 6, 2),
+#     3: None,  # PositionIdentifier(Cube(Color.NONE, 967, 411, 196, 100)),
+#     2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164, 98), 2),
+#     1: PositionIdentifier(Cube(Color.NONE, 967, 411, 182, 162), 1),
+#     4: PositionIdentifier(Cube(Color.NONE, 781, 416, 184, 158), 4),
+# }
+
+# todo: further calibrate, especially position 2
 calibratedPositions0Degree = {
-    8: PositionIdentifier(Cube(Color.NONE, 770, 177, 200, 274), 8, 4),
-    5: PositionIdentifier(Cube(Color.NONE, 964, 183, 210, 258), 5, 1),
-    7: PositionIdentifier(Cube(Color.NONE, 780, 98, 186, 126), 7, 3),
-    6: PositionIdentifier(Cube(Color.NONE, 952, 100, 196, 100), 6, 2),
+    8: PositionIdentifier(Cube(Color.NONE, 532, 120, 110, 109), 8, 4),
+    # difference for 8                        242,    057,    090,    165
+    5: PositionIdentifier(Cube(Color.NONE, 642, 118, 110, 144), 5, 1),
+    # difference for 5                        322,    065,    100,    114
+    7: PositionIdentifier(Cube(Color.NONE, 540,  87, 105, 135), 7, 3),
+    # difference for 7                        240,    011,    081,   -091
+    6: PositionIdentifier(Cube(Color.NONE, 636,  66, 104, 130), 6, 2),
+    # difference for 6                        316,    034,    092,    070
     3: None,  # PositionIdentifier(Cube(Color.NONE, 967, 411, 196, 100)),
-    2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164, 98), 2),
-    1: PositionIdentifier(Cube(Color.NONE, 967, 411, 182, 162), 1),
-    4: PositionIdentifier(Cube(Color.NONE, 781, 416, 184, 158), 4),
+    2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164,  98), 2),
+    1: PositionIdentifier(Cube(Color.NONE, 644, 196, 110, 142), 1),
+    # difference for 1                        323,    215,    072,    020
+    4: PositionIdentifier(Cube(Color.NONE, 540, 264, 105,  79), 4),
+    # difference for 4                        241,    152,    079,    079
 }
+
 
 calibratedPositions90Degree = {
     5: calibratedPositions0Degree[8],
@@ -260,7 +281,7 @@ def analyze_positions_in_one_frame(cubes: [Cube], angle):
         logging.debug(msg)
         for key, position_identifier in calibrated_positions.items():
             msg1 = "calibratedPosition: " + str(position_identifier)
-            logging.debug(msg1)
+            # logging.debug(msg1)
             if positions[key] is None and position_identifier is not None and position_identifier.is_cube_at_position(
                     cube):
                 positions[key] = cube.color
@@ -387,7 +408,7 @@ def analyze_cube_positions_per_frames(frame, angle, frame1, angle1, frame2, angl
 
 
 def analyze_frame(angle, frame):
-    raw_cubes = detect_colored_cubes(frame, cv2)
+    raw_cubes = detect_colored_cubes(frame, cv2, angle)
     cubes = split_big_cubes(raw_cubes)
     return analyze_positions_in_one_frame(cubes, angle)
 
@@ -414,7 +435,7 @@ def analyze_cube_positions_from_video(path) -> Dict[int, Type[PositionIdentifier
             # todo: check with angle detector whether we are good
             frame_count = 220
 
-        raw_cubes = detect_colored_cubes(frame, cv2)
+        raw_cubes = detect_colored_cubes(frame, cv2, angle)
         cubes = split_big_cubes(raw_cubes)
         frame_positions = analyze_positions_in_one_frame(cubes, angle)
         video_positions.append(frame_positions)

@@ -2,8 +2,12 @@ import logging
 from enum import Enum
 from dataclasses import dataclass
 
-cube_max_width = 300
-cube_max_height = 300
+# todo: check those values
+# video values
+# cube_max_width = 300
+# cube_max_height = 300
+cube_max_width = 160
+cube_max_height = 160
 
 
 @dataclass

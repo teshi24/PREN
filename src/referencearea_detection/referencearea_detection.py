@@ -37,7 +37,12 @@ def calculate_intersection_point(h_line, v_line):
 
 def find_frame(frame):
     edges = cv2.Canny(frame, 50, 150)
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=50)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=150)
+    # lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=50)
+    # lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=50)
+
+    if logging_level == logging.DEBUG:
+        frame_copy = frame.copy()
 
     if lines is not None:
         filtered_lines = []
@@ -50,8 +55,8 @@ def find_frame(frame):
                 if 200 < y1 < 300:
                     filtered_lines.append((line, angle, 'h'))
                     horizontal_lines.append((line, angle))
-            elif np.abs(angle - 90) < 1 or np.abs(angle + 90) < 1:
-                if 600 < x1 < 800:
+            elif np.abs(angle - 90) < 1.5 or np.abs(angle + 90) < 1.5:
+                if 600 < x1 < 1000:
                     filtered_lines.append((line, angle, 'v'))
                     vertical_lines.append((line, angle))
         # print(f'filtered_lines: {filtered_lines}')
@@ -62,15 +67,19 @@ def find_frame(frame):
         for line, angle, _ in filtered_lines:
             x1, y1, x2, y2 = line[0]
             if logging_level == logging.DEBUG:
-                cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green lines
+                cv2.line(frame_copy, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green lines
                 cv2.line(edges, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green lines
         median_horizontal = None
         median_vertical = None
         # draw median horizontal / vertical lines:
         if len(horizontal_lines) > 0:
-            median_horizontal = draw_median_lines(frame, horizontal_lines)
+            median_horizontal = get_median_line(horizontal_lines)
+            if logging_level == logging.DEBUG:
+                draw_median_line(frame_copy, median_horizontal)
         if len(vertical_lines) > 0:
-            median_vertical = draw_median_lines(frame, vertical_lines)
+            median_vertical = get_median_line(vertical_lines)
+            if logging_level == logging.DEBUG:
+                draw_median_line(frame_copy, median_vertical)
 
         if len(horizontal_lines) > 0 and len(vertical_lines) > 0:
             if median_horizontal is not None and median_vertical is not None:
@@ -81,19 +90,27 @@ def find_frame(frame):
                 # # cv2.imshow('edge', edges)
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
+
+    if logging_level == logging.DEBUG:
+        cv2.imshow('edges', edges)
+        cv2.imshow('frame_copy', frame_copy)
+        cv2.waitKey(0)
     return None, None
 
 
-def draw_median_lines(frame, lines_with_angles):
+def draw_median_line(frame_copy, median_line):
+    if median_line is not None:
+        cv2.line(frame_copy, (int(median_line[0]), int(median_line[1])),
+                 (int(median_line[2]), int(median_line[3])), (0, 0, 0), 2)
+
+
+def get_median_line(lines_with_angles):
     lines = [line[0] for line, _ in lines_with_angles]
     # print(f'lines {lines}')
     median_line = get_median_without_outliers(5, lines)
     # print(f'median line {median_line}')
     if np.any(np.isnan(median_line)):
         return None
-    if logging_level == logging.DEBUG:
-        cv2.line(frame, (int(median_line[0]), int(median_line[1])),
-                 (int(median_line[2]), int(median_line[3])), (0, 0, 0), 2)
     return median_line
 
 
@@ -199,7 +216,8 @@ def get_image_and_angle(frame_queue, running):
             visited_angles.add(angle)
             cv2.imwrite(f'test_frame_angle_{angle}_{i}.jpg', frame)
         else:
-            print("No suitable frame found.")
+            # print("No suitable frame found.")
+            pass
 
     cap.release()
 
