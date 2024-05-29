@@ -110,14 +110,14 @@ def get_commands_by_level(positions, level, start_position):
         total_cost, path_with_costs = bidirectional_uniform_cost_search_with_costs(position_graph, start_node,
                                                                                    goal_node)
         if path_with_costs:
-            logging.debug("Total Cost from", start_node, "to", goal_node, ":", total_cost)
+            logging.debug("Total Cost from %s to %s: %d", start_node, goal_node, total_cost)
             logging.debug("Path with Step Costs:")
             for node, step_cost in path_with_costs:
-                logging.debug("Node:", node, "- Step Cost:", step_cost)
+                logging.debug("Node: %s - Step Cost: %d", node, step_cost)
             logging.debug('--------------')
             costs[total_cost].append(goal_node)
         else:
-            logging.debug("No path found from", start_node, "to", goal_node)
+            logging.debug("No path found from %s to %s", start_node, goal_node)
 
     logging.debug(costs)
 
