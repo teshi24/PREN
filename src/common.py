@@ -30,7 +30,7 @@ def write_to_file(positions_json, i):
         json.dump(positions_json, file)
 
 
-def analyze_frames(frame_queue: queue):
+def analyze_frames(frame_queue: queue.Queue):
     (frame, angle) = frame_queue.get()
     logging.info('img 0')
     logging.debug(angle)
@@ -186,24 +186,27 @@ class Main:
             analyze_frames_thread = threading.Thread(target=analyze_frames, args=[frame_queue])
             analyze_frames_thread.start()
 
-            
-            energy_consumption_thread = threading.Thread(target=self.energy_func, args=(self.energy_func()))
-            energy_consumption_thread.start()
+            # Wait for the progress bar to complete
+            progress_bar_thread.join()
 
+            # Display energy consumption
+            energy_consumption = self.energy_func()
+            energy_consumption_thread = threading.Thread(target=update_energy_consumption_dummy, args=(energy_consumption,))
+            energy_consumption_thread.start()
+            
             analyze_frames_thread.join()
             running.clear()
             find_frame_thread.join()
-            progress_bar_thread.join()
             energy_consumption_thread.join()
 
             self.signal_interface.wait_for_feedback()
-x
+
 
 if dummys:
     signalInterface = DummySignalInterface()
     frame_detection_func = get_image_and_angle_dummy_from_video
     progress_bar_func = update_progress_bar_dummy
-    energy_func = update_energy_consumption_dummy
+    energy_func = get_energy_consumption_dummy
 else:
     raise NotImplementedError('need to connect the IC2-IF ;)')
     signalInterface = I2CSignalInterface(None, None)
