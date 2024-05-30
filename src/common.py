@@ -26,35 +26,15 @@ def write_to_file(positions_json, i):
         json.dump(positions_json, file)
 
 
-def analyze_frames(frame_queue: queue.Queue):
-    (frame, angle) = frame_queue.get()
-    logging.info(f'img 0, angle {angle}')
+def analyze_frames(frame_queue: queue.Queue, positions: {}):
+    found_positions = []
+    for i in range(4):
+        (frame, angle) = frame_queue.get()
+        logging.info('position analysis starting')
+        logging.info(f'img {i}, angle {angle}')
+        found_positions.append(pa.analyze_frame(frame, angle))
 
-    (frame1, angle1) = frame_queue.get()
-    logging.info(f'img 1, angle {angle1}')
-
-    (frame2, angle2) = frame_queue.get()
-    logging.info(f'img 2, angle {angle2}')
-
-    (frame3, angle3) = frame_queue.get()
-    logging.info(f'img 3, angle {angle3}')
-
-    logging.info('position analysis starting')
-    positions = pa.analyze_cube_positions_per_frames(frame, angle, frame1, angle1, frame2, angle2, frame3, angle3)
-    logging.info('position analysis done')
-
-    # todo: consider to move this stuff out of the thread
-    path = find_best_path(positions)
-
-    # todo: send path to machine
-    # todo: send config to API
-
-    time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    positions_json = {'time': time, 'config': positions, 'path': path}
-    logging.debug('write to file...')
-    write_to_file(positions_json, 10)
-
-    logging.info('positions written to file')
+    positions.update(pa.combine_positions(found_positions))
 
 
 def show_energy_consumption_dummy(energy_consumption):
@@ -65,7 +45,7 @@ def update_progress_bar_dummy(energy_consumption_event):
     i = 0
     while not energy_consumption_event.is_set():
         print(f"Progressbar bei {i} %")
-        time.sleep(1)
+        time.sleep(10)
         i += 1
     print(f"Progressbar bei 100 %")
     print(f'energy consumption: {energy_consumption_event.energy_consumption}')
@@ -146,7 +126,8 @@ class DummySignalInterface(SignalInterface):
                 return
 
     def wait_for_energy_consumption(self):
-        print("Press 'f' to to simulate the retrieval of the energy consumption from the machine (which is also the 'finished' signal)")
+        print(
+            "Press 'f' to to simulate the retrieval of the energy consumption from the machine (which is also the 'finished' signal)")
         while True:
             key = input()
             if key == 'f':
@@ -178,11 +159,25 @@ class Main:
             find_frame_thread = threading.Thread(target=self.frame_detection_func, args=(frame_queue, running))
             find_frame_thread.start()
 
-            analyze_frames_thread = threading.Thread(target=analyze_frames, args=[frame_queue])
+            positions = {}
+            analyze_frames_thread = threading.Thread(target=analyze_frames, args=(frame_queue, positions))
             analyze_frames_thread.start()
 
             analyze_frames_thread.join()
             running.clear()
+
+            path = find_best_path(positions)
+
+            # todo: send path to machine
+            # todo: send config to API
+
+            positions_json = {'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'config': positions, 'path': path}
+            logging.debug('write to file...')
+            write_to_file(positions_json, 10)
+
+            logging.info('positions written to file')
+
+            # ensure that this thread gets closed
             find_frame_thread.join()
 
             energy_consumption = self.signal_interface.wait_for_energy_consumption()

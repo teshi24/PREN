@@ -266,7 +266,7 @@ End_Result = {
 }
 
 
-def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier | None]]]):
+def combine_positions(video_positions: [Dict[int, Type[PositionIdentifier | None]]]):
     logging.debug("analyze_video_positions started")
     starting_point = {Color.RED.color_name: 0,
                       Color.BLUE.color_name: 0,
@@ -321,24 +321,7 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
     return end_result
 
 
-def analyze_cube_positions_per_frames(frame, angle, frame1, angle1, frame2, angle2, frame3, angle3):
-    video_positions: [Dict[int, Type[PositionIdentifier | None]]] = []
-    frame_positions = analyze_frame(angle, frame)
-    video_positions.append(frame_positions)
-
-    frame_positions = analyze_frame(angle1, frame1)
-    video_positions.append(frame_positions)
-
-    frame_positions = analyze_frame(angle2, frame2)
-    video_positions.append(frame_positions)
-
-    frame_positions = analyze_frame(angle3, frame3)
-    video_positions.append(frame_positions)
-
-    return analyze_video_positions(video_positions)
-
-
-def analyze_frame(angle, frame):
+def analyze_frame(frame, angle):
     raw_cubes = detect_colored_cubes(frame, cv2, angle)
     cubes = split_big_cubes(raw_cubes)
     return analyze_positions_in_one_frame(cubes, angle)
