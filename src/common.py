@@ -13,8 +13,8 @@ import os
 import time
 
 # Module importieren
-from src.path_finder.path_finder import find_best_path
-from src.referencearea_detection.referencearea_detection import get_image_and_angle
+from path_finder.path_finder import find_best_path
+from referencearea_detection.referencearea_detection import get_image_and_angle
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging_level)
 
