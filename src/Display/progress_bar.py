@@ -19,8 +19,6 @@ def update_display(power_consumption: float):
     device = 0
     logging.basicConfig(level=logging.DEBUG)
 
-
-
     try:
         # Display with hardware SPI
         disp = LCD_1inch3.LCD_1inch3()
@@ -32,27 +30,19 @@ def update_display(power_consumption: float):
         disp.bl_DutyCycle(100)
 
         # Load a font
-        # font = ImageFont.load_default()
-        # Load a TrueType font
         font_path = "/home/pi/PREN/src/Display/Open_Sans/Textdatei.ttf"
         font_size = 24  # Ändern Sie die Schriftgröße hier
         font = ImageFont.truetype(font_path, font_size)
 
         # Progress bar configuration
-        progress_duration = 120
-        consumption = 0
+        progress_duration = 10
 
         bar_width = disp.width - 40  # Width of the progress bar
         bar_height = 30  # Height of the progress bar
         bar_x = 20  # X position of the progress bar
         bar_y = (disp.height - bar_height) // 2  # Center the bar on the display vertically
-        random_number = random.randint(0,30)
 
         for i in range(progress_duration + 1):
-            random_number = random.randint(0,30)
-            consumption = consumption+random_number
-            
-            
             # Create blank image for drawing
             image1 = Image.new("RGB", (disp.width, disp.height), "BLACK")
             draw = ImageDraw.Draw(image1)
@@ -74,20 +64,6 @@ def update_display(power_consumption: float):
             text_x = bar_x + 80  # Position the text to the right of the bar
             text_y = bar_y + (bar_height // 2) - 15
             draw.text((text_x, text_y), percent_text, font=font, fill="WHITE")
-
-            # Draw the consumption text
-            consumption_text = "Consumption"
-            text_x = 50
-            text_y = 40
-            draw.text((text_x, text_y), consumption_text, font=font, fill="WHITE")
-            consumption = consumption+random_number
-            
-            # Draw the consumption number
-            consumption_text = f"{consumption+random_number}g CO2/kWh"
-            text_x = 45
-            text_y = 70
-            draw.text((text_x, text_y), consumption_text, font=font, fill="WHITE")
-            consumption = consumption+random_number
                 
             # Rotate and display the image
             im_r = image1.rotate(270)
@@ -96,13 +72,29 @@ def update_display(power_consumption: float):
             # Pause for 1 second
             time.sleep(0.5)
 
-        # After reaching 100%, display "Complete"
+        # After reaching 100%, display "Complete" and consumption information
         draw.rectangle((0, 0, disp.width, disp.height), fill="WHITE")
-        draw.text((100, 120), "Complete", font=font, fill="BLACK")
+
+        # Draw the "Complete" text
+        complete_text = "Complete"
+        complete_text_width, complete_text_height = draw.textsize(complete_text, font=font)
+        draw.text(((disp.width - complete_text_width) // 2, 20), complete_text, font=font, fill="BLACK")
+
+        # Draw the consumption text
+        consumption_text = "Consumption"
+        consumption_text_width, consumption_text_height = draw.textsize(consumption_text, font=font)
+        draw.text(((disp.width - consumption_text_width) // 2, 80), consumption_text, font=font, fill="BLACK")
+            
+        # Draw the consumption number
+        consumption_value_text = f"{power_consumption} Wh"
+        consumption_value_text_width, consumption_value_text_height = draw.textsize(consumption_value_text, font=font)
+        draw.text(((disp.width - consumption_value_text_width) // 2, 120), consumption_value_text, font=font, fill="BLACK")
+
+        # Rotate and display the image
         im_r = image1.rotate(270)
         disp.ShowImage(im_r)
 
-        time.sleep(3)  # Display the complete message for 3 seconds
+        time.sleep(10)  # Display the consumption message for 10 seconds
         disp.module_exit()
         logging.info("Progress complete.")
 
@@ -112,3 +104,5 @@ def update_display(power_consumption: float):
         disp.module_exit()
         logging.info("quit:")
         exit()
+
+update_display(100)
