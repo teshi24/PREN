@@ -10,10 +10,13 @@ from frame_analyzer import position_analyzer as pa
 from datetime import datetime
 import json
 import os
+import time
 
-from src.path_finder.path_finder import find_best_path
-from src.referencearea_detection.referencearea_detection import get_image_and_angle
-from src.Display.progress_bar import update_display
+# Module importieren
+from path_finder.path_finder import find_best_path
+from referencearea_detection.referencearea_detection import get_image_and_angle
+from Display.progress_bar import show_progress_bar
+from Display.energy_consumption import show_energy_consumption
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging_level)
 ## todo: remove dummies / set it to False
@@ -65,9 +68,13 @@ def analyze_frames(frame_queue: queue):
 def get_energy_consumption_dummy():
     return 100
 
-
-def update_display_dummy(energy_consumption):
+def update_energy_consumption_dummy(energy_consumption):
     print(f"Dummy update_display: Energy Consumption: {energy_consumption} wh")
+
+def update_progress_bar_dummy():
+    for i in range(11):
+        print(f"Progressbar bei {10 * i} %") 
+        time.sleep(1) 
 
 
 def get_image_and_angle_dummy_from_video(result_queue: queue.Queue, running: threading.Event):
@@ -153,16 +160,19 @@ class DummySignalInterface(SignalInterface):
 
 
 class Main:
-    def __init__(self, signal_interface, frame_detection_func, display_func, energy_func):
+    def __init__(self, signal_interface, frame_detection_func, progress_bar_func, energy_func):
         self.signal_interface = signal_interface
         self.frame_detection_func = frame_detection_func
-        self.display_func = display_func
+        self.progress_bar_func = progress_bar_func
         self.energy_func = energy_func
 
     def main(self):
         while True:
             self.signal_interface.wait_for_start_signal()
 
+            progress_bar_thread = threading.Thread(target=self.progress_bar_func)
+            progress_bar_thread.start()
+            
             logging.info('open queue')
             frame_queue = queue.Queue()
 
@@ -176,28 +186,29 @@ class Main:
             analyze_frames_thread = threading.Thread(target=analyze_frames, args=[frame_queue])
             analyze_frames_thread.start()
 
-            energy_consumption = self.energy_func()
-            update_display_thread = threading.Thread(target=self.display_func, args=(energy_consumption,))
-            update_display_thread.start()
+            
+            energy_consumption_thread = threading.Thread(target=self.energy_func, args=(self.energy_func()))
+            energy_consumption_thread.start()
 
             analyze_frames_thread.join()
             running.clear()
             find_frame_thread.join()
-            update_display_thread.join()
+            progress_bar_thread.join()
+            energy_consumption_thread.join()
 
             self.signal_interface.wait_for_feedback()
-
+x
 
 if dummys:
     signalInterface = DummySignalInterface()
     frame_detection_func = get_image_and_angle_dummy_from_video
-    update_display_func = update_display_dummy
-    energy_func = get_energy_consumption_dummy
+    progress_bar_func = update_progress_bar_dummy
+    energy_func = update_energy_consumption_dummy
 else:
     raise NotImplementedError('need to connect the IC2-IF ;)')
     signalInterface = I2CSignalInterface(None, None)
     frame_detection_func = get_image_and_angle
-    update_display_func = update_display
-    energy_func = get_energy_consumption
+    progress_bar_func = show_progress_bar
+    energy_func = show_energy_consumption
 
-Main(signalInterface, frame_detection_func, display_func, energy_func).main()
+Main(signalInterface, frame_detection_func, progress_bar_func, energy_func).main()
