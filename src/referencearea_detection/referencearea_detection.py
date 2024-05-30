@@ -1,9 +1,8 @@
 import logging
 import cv2
-import queue
 import numpy as np
 
-from env import logging_level
+from env import logging_level, show_imgs, write_imgs
 from src.frame_analyzer.color_detector import detect_contours
 
 
@@ -38,8 +37,6 @@ def calculate_intersection_point(h_line, v_line):
 def find_frame(frame):
     edges = cv2.Canny(frame, 50, 150)
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=150)
-    # lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=50)
-    # lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=50)
 
     if logging_level == logging.DEBUG:
         frame_copy = frame.copy()
@@ -59,19 +56,20 @@ def find_frame(frame):
                 if 600 < x1 < 1000:
                     filtered_lines.append((line, angle, 'v'))
                     vertical_lines.append((line, angle))
-        # print(f'filtered_lines: {filtered_lines}')
-        # print(f'horizontal_lines: {horizontal_lines}')
-        # print(f'vertical_lines: {vertical_lines}')
+        # logging.debug(f'filtered_lines: {filtered_lines}')
+        # logging.debug(f'horizontal_lines: {horizontal_lines}')
+        # logging.debug(f'vertical_lines: {vertical_lines}')
 
-        # Draw the filtered lines on the original image
-        for line, angle, _ in filtered_lines:
-            x1, y1, x2, y2 = line[0]
-            if logging_level == logging.DEBUG:
+        # Draw the filtered lines in debug mode
+        if logging_level == logging.DEBUG:
+            for line, angle, _ in filtered_lines:
+                x1, y1, x2, y2 = line[0]
                 cv2.line(frame_copy, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green lines
                 cv2.line(edges, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green lines
+
         median_horizontal = None
         median_vertical = None
-        # draw median horizontal / vertical lines:
+        # get median lines and draw them in debug mode:
         if len(horizontal_lines) > 0:
             median_horizontal = get_median_line(horizontal_lines)
             if logging_level == logging.DEBUG:
@@ -81,17 +79,17 @@ def find_frame(frame):
             if logging_level == logging.DEBUG:
                 draw_median_line(frame_copy, median_vertical)
 
-        if len(horizontal_lines) > 0 and len(vertical_lines) > 0:
-            if median_horizontal is not None and median_vertical is not None:
-                intersection_point = check_intersection_median(median_horizontal, median_vertical)
-                if intersection_point:
-                    return frame, intersection_point
-                # cv2.imshow('original', frame)
-                # # cv2.imshow('edge', edges)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
+        if show_imgs:
+            cv2.imshow('edges', edges)
+            cv2.imshow('frame_copy', frame_copy)
+            cv2.waitKey(0)
 
-    if logging_level == logging.DEBUG:
+        if median_horizontal is not None and median_vertical is not None:
+            intersection_point = check_intersection_median(median_horizontal, median_vertical)
+            if intersection_point:
+                return frame, intersection_point
+
+    if show_imgs:
         cv2.imshow('edges', edges)
         cv2.imshow('frame_copy', frame_copy)
         cv2.waitKey(0)
@@ -106,9 +104,9 @@ def draw_median_line(frame_copy, median_line):
 
 def get_median_line(lines_with_angles):
     lines = [line[0] for line, _ in lines_with_angles]
-    # print(f'lines {lines}')
+    # logging.debug(f'lines {lines}')
     median_line = get_median_without_outliers(5, lines)
-    # print(f'median line {median_line}')
+    # logging.debug(f'median line {median_line}')
     if np.any(np.isnan(median_line)):
         return None
     return median_line
@@ -124,14 +122,14 @@ def get_median_without_outliers(threshold, lines):
     max_length_variance = threshold / 100 * median_length
 
     # Identify lines as outliers based on their length
-    # filtered_lines = [line for line in lines if np.abs(np.linalg.norm(line[0][2:] - line[0][:2]) - median_length) < threshold]
     filtered_lines = []
     for line in lines:
         line_length = np.linalg.norm(line[2:] - line[:2])
-        # print(f'line {line}, line_length {line_length}, median_length {median_length}, variance {np.abs(line_length - median_length)}, max_length_var {max_length_variance}')
+        # logging.debug(f'line {line}, line_length {line_length}, median_length {median_length}, variance {np.abs(line_length - median_length)}, max_length_var {max_length_variance}')
         if ignore_threshold or np.abs(line_length - median_length) < max_length_variance:
             filtered_lines.append(line)
-    # print(f'filtered lines median calc: {filtered_lines}')
+    # logging.debug(f'filtered lines median calc: {filtered_lines}')
+
     # Compute the median line (average of filtered_lines)
     median_line = np.mean(filtered_lines, axis=0)
     return median_line
@@ -159,13 +157,13 @@ def to_white_area(frame, intersection_point):
     if largest_contour is not None:
         if logging_level == logging.DEBUG:
             cv2.drawContours(frame, [largest_contour], 0, (0, 255, 0), 2)
-        print(f'largest_contour found')
-        print(f'intersection_point {intersection_point}')
+        logging.debug('largest_contour found')
+        logging.debug(f'intersection_point {intersection_point}')
         M = cv2.moments(largest_contour)
         if M['m00'] != 0:
             centroid_x = int(M['m10'] / M['m00'])
             centroid_y = int(M['m01'] / M['m00'])
-            print(f"Centroid coordinates: ({centroid_x}, {centroid_y})")
+            logging.debug(f"Centroid coordinates: ({centroid_x}, {centroid_y})")
             ref_x = intersection_point[0]
             ref_y = intersection_point[1]
             if centroid_x > ref_x and centroid_y > ref_y:
@@ -177,9 +175,9 @@ def to_white_area(frame, intersection_point):
             else:
                 return 90
         else:
-            print("Contour area is zero, cannot compute centroid.")
+            logging.debug("Contour area is zero, cannot compute centroid.")
     else:
-        print('no largest contour found')
+        logging.debug('no largest contour found')
 
 
 def get_image_and_angle(frame_queue, running):
@@ -194,7 +192,6 @@ def get_image_and_angle(frame_queue, running):
     logging.debug('Image analysis starting...')
 
     visited_angles = set()
-    i = 0
     while running.is_set():
         if len(visited_angles) > 3:
             continue
@@ -202,21 +199,21 @@ def get_image_and_angle(frame_queue, running):
         if not ret:
             logging.warning('Warning: unable to read next frame')
             break
-        i += 1
         found_frame, intersection_point = find_frame(frame)
         if found_frame is not None:
             angle = to_white_area(found_frame, intersection_point)
             if angle in visited_angles:
-                # todo better handling required
-                print(f'angle already visited: {angle}')
+                # todo: potentially better handling required
+                logging.info(f'angle already visited: {angle}')
                 continue
 
-            print(f"Found frame with angle {angle}°")
+            logging.info(f"Found frame with angle {angle}°")
             frame_queue.put((frame, angle))
             visited_angles.add(angle)
-            cv2.imwrite(f'test_frame_angle_{angle}_{i}.jpg', frame)
+            if write_imgs:
+                cv2.imwrite(f'test_frame_angle_{angle}.jpg', frame)
         else:
-            # print("No suitable frame found.")
+            # logging.debug("No suitable frame found.")
             pass
 
     cap.release()

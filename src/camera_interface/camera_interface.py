@@ -1,3 +1,5 @@
+import logging
+
 import cv2
 
 
@@ -14,11 +16,11 @@ def open_camera_profile():
                             '/axis-media/media.amp' +
                             '?streamprofile=' + profile)
     if cap is None or not cap.isOpened():
-        print('Warning: unable to open video source: ', ip_address)
+        logging.warning('Warning: Unable to open video source: ', ip_address)
         return None
     while True:
         ret, frame = cap.read()
         if not ret:
-            print('Warning: unable to read next frame')
+            logging.warning('Warning: Unable to read next frame')
             break
         return frame

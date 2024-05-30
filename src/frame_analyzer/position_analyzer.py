@@ -33,8 +33,6 @@ class PositionIdentifier:
         upper_bound = average + delta
         return lower_bound <= value <= upper_bound
 
-    # todo: handle hidden_by
-
 
 # würfelposition: position_im_frame
 # obere Fläche  0°             obere Fläche  90°                              obere Fläche  180°           obere Fläche  270°
@@ -64,55 +62,20 @@ defaultConfig: Dict[int, Type[PositionIdentifier | None]] = {
 
 # todo: add calibration algorithm
 
-# todo: fix structure functionality
-# position_structure_0_degree = {
-#     1: PositionIdentifier(Cube(Color.NONE, 967, 411, 182, 162), 1), 2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164, 98), 2),
-#     3: None, 4: PositionIdentifier(Cube(Color.NONE, 781, 416, 184, 158), 4), # todo: find data for 3
-#     5: PositionIdentifier(Cube(Color.NONE, 964, 183, 210, 258), 5), 6: PositionIdentifier(Cube(Color.NONE, 952, 100, 196, 100), 6),
-#     7: PositionIdentifier(Cube(Color.NONE, 780, 98, 186, 126), 7), 8: PositionIdentifier(Cube(Color.NONE, 770, 177, 200, 274), 8)
-# }
-# def rotate_structure(structure, degrees):
-#     rotated_structure = {}
-#     for key, cube in structure.items():
-#         rotated_key = rotate_key(key, degrees)
-#         rotated_structure[rotated_key] = cube
-#     return rotated_structure
-#
-# def rotate_key(key, degrees):
-#     # Function to rotate the key based on degrees (0, 90, 180, 270)
-#     if degrees == 90:
-#         return (key - 1) // 2 * 4 + 2 - (key % 2)
-#     elif degrees == 180:
-#         return (key - 1) ^ 4 + 1
-#     elif degrees == 270:
-#         return (key - 1) // 2 * 4 + 1 + (key % 2)
-#     else:
-#         return key
-#
-# def print_structure(structure):
-#     print("------")
-#     for key, position_identifier in structure.items():
-#         if position_identifier is None:
-#             print(f'{key}: None')
-#             continue
-#         print(f'{key}: {position_identifier.position}')
+# difference for 8  top front left        242,    057,    090,    165
+# difference for 5  top front right       322,    065,    100,    114
+# difference for 7  top back  left        240,    011,    081,   -091
+# difference for 6  top back  right       316,    034,    092,    070
+# difference for 3  bottom back left      241,    184,    086,    066
+# difference for 2  bottom back right     320,    184,    086,    066
+# difference for 1  bottom front right    323,    215,    072,    020
+# difference for 4  bottom front left     241,    152,    079,    079
 
-# # Example usage
-# initial_structure = position_structure_0_degree
-# print_structure(initial_structure)
-#
-# # Rotate the structure by 90 degrees
-# rotated_structure_90 = rotate_structure(initial_structure, 90)
-# print_structure(rotated_structure_90)
-#
-# # Rotate the structure by 180 degrees
-# rotated_structure_180 = rotate_structure(initial_structure, 180)
-# print_structure(rotated_structure_180)
-#
-# # Rotate the structure by 270 degrees
-# rotated_structure_270 = rotate_structure(initial_structure, 270)
-# print_structure(rotated_structure_270)
-
+# --> left                              ca. 241
+# --> right                             ca. 320
+# --> top                                       ca. 042
+# --> bottom                                    ca. 184
+# --> avg                                               ca. 86  ca. 66
 
 # extra sortiert, damit andere Reihenfolge entdeckt wird
 # when analyzing from videos
@@ -127,24 +90,28 @@ defaultConfig: Dict[int, Type[PositionIdentifier | None]] = {
 #     4: PositionIdentifier(Cube(Color.NONE, 781, 416, 184, 158), 4),
 # }
 
+
 # todo: further calibrate, especially position 2
+# extra sortiert, damit andere Reihenfolge entdeckt wird
 calibratedPositions0Degree = {
     8: PositionIdentifier(Cube(Color.NONE, 532, 120, 110, 109), 8, 4),
     # difference for 8                        242,    057,    090,    165
     5: PositionIdentifier(Cube(Color.NONE, 642, 118, 110, 144), 5, 1),
     # difference for 5                        322,    065,    100,    114
-    7: PositionIdentifier(Cube(Color.NONE, 540,  87, 105, 135), 7, 3),
+    7: PositionIdentifier(Cube(Color.NONE, 540, 87, 105, 135), 7, 3),
     # difference for 7                        240,    011,    081,   -091
-    6: PositionIdentifier(Cube(Color.NONE, 636,  66, 104, 130), 6, 2),
+    6: PositionIdentifier(Cube(Color.NONE, 636, 66, 104, 130), 6, 2),
     # difference for 6                        316,    034,    092,    070
-    3: None,  # PositionIdentifier(Cube(Color.NONE, 967, 411, 196, 100)),
-    2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164,  98), 2),
+    3: None,  # PositionIdentifier(Cube(Color.NONE, 728, 227, 110, 034)),
+    # difference for 3  bottom back left            241, 184, 086, 066
+#   2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164, 98), 2),
+    2: PositionIdentifier(Cube(Color.NONE, 648, 100, 90, 32), 2),
+    # difference for 2  bottom back right     320,    184,    086,    066
     1: PositionIdentifier(Cube(Color.NONE, 644, 196, 110, 142), 1),
     # difference for 1                        323,    215,    072,    020
-    4: PositionIdentifier(Cube(Color.NONE, 540, 264, 105,  79), 4),
+    4: PositionIdentifier(Cube(Color.NONE, 540, 264, 105, 79), 4),
     # difference for 4                        241,    152,    079,    079
 }
-
 
 calibratedPositions90Degree = {
     5: calibratedPositions0Degree[8],
@@ -216,16 +183,8 @@ class CalibratedPositions(CalibratedPosition, Enum):
         elif angle == 270 or angle == 315:
             return cls.DEGREE_270
         else:
-            return cls.DEGREE_270
-            # todo: fix again
             raise ValueError(f"Invalid angle: {angle}")
 
-
-# for i in range(0, 8):
-#     calibrated_position = calibratedPositions.get(i + 1)
-#     if calibrated_position is None:
-#         continue
-#     calibrated_position.calibrationCube.printValues()
 
 def split_cubes_next_to_each_other(cube: [Cube]):
     half_w = int(cube.w / 2)
@@ -276,39 +235,18 @@ def analyze_positions_in_one_frame(cubes: [Cube], angle):
     calibrated_positions = CalibratedPositions.from_angle(angle).positions
 
     for cube in cubes:
-        msg = "color: " + str(cube.color.color_name) + ", x: " + str(cube.x) + ", y: " + str(
-            cube.y) + ", center: " + str(cube.center)
-        logging.debug(msg)
+        logging.debug('color: %s, x: %d, y: %d, center: %s', cube.color.color_name, cube.x, cube.y, cube.center)
         for key, position_identifier in calibrated_positions.items():
-            msg1 = "calibratedPosition: " + str(position_identifier)
-            # logging.debug(msg1)
             if positions[key] is None and position_identifier is not None and position_identifier.is_cube_at_position(
                     cube):
                 positions[key] = cube.color
                 break
 
-    log_positions("detected positions:", positions)
-
-    # todo: fix prep
-    # changed_positions = positions.copy()
-    # for key in positions:
-    #     color = positions[key]
-    #     if color is None:
-    #         continue
-    #     calibratedPosition = calibrated_positions[key]
-    #     print("analyzed item: " + str(key) + ': ' + str(positions[key]))
-    #     if calibratedPosition is not None and calibratedPosition.prerequisite is not None: # and calibratedPosition.prerequisite is not None:
-    #         print("calibration item as prerequisite: " + str(calibratedPosition.prerequisite) + ': ' + str(positions[calibratedPosition.prerequisite]))
-    #         if positions[calibratedPosition.prerequisite] is not None:
-    #             print("issue detected - invisible item was detected as a color; value set to None")
-    #             changed_positions[key] = None
-    #
-    # print_positions("positions after changes:", changed_positions)
+    log_positions(f"detected positions for {angle}:", positions)
     return positions
 
 
 def log_positions(analysis_name, positions):
-    logging.info(analysis_name)
     position_string = "{ "
     for key in positions:
         color = positions[key]
@@ -317,7 +255,7 @@ def log_positions(analysis_name, positions):
             continue
         position_string += str(key) + ": " + str(color.color_name) + ","
     position_string += " }"
-    logging.info(position_string)
+    logging.info(analysis_name + position_string)
 
 
 End_Result = {
@@ -349,8 +287,7 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
         if positions is None:
             logging.debug('positions was None')
             continue
-        msg = 'positions: ' + str(positions)
-        logging.debug(msg)
+        logging.debug('positions: %s', positions)
         for key, color in positions.items():
             if key is None:
                 logging.debug('key was None')
@@ -358,23 +295,17 @@ def analyze_video_positions(video_positions: [Dict[int, Type[PositionIdentifier 
             if color is None:
                 logging.debug('color was None')
                 continue
-            msg1 = 'key: ' + str(key)
-            logging.debug(msg1)
-            msg2 = 'color: ' + str(color)
-            logging.debug(msg2)
-            msg3 = 'color.color_name' + str(color.color_name)
-            logging.debug(msg3)
-            msg4 = 'end_positions_percentages[key]: ' + str(end_positions_percentages[key])
-            logging.debug(msg4)
-            msg5 = 'end_positions_percentages[key][color.color_name]: ' + str(
-                end_positions_percentages[key][color.color_name])
-            logging.debug(msg5)
+            logging.debug('key: %s', key)
+            logging.debug('color: %s', color)
+            logging.debug('color.color_name: %s', color.color_name)
+            logging.debug('end_positions_percentages[key]: %s', end_positions_percentages[key])
+            logging.debug('end_positions_percentages[key][color.color_name]: %s',
+                          end_positions_percentages[key][color.color_name])
             end_positions_percentages[key][color.color_name] += 25
 
     logging.debug("end result percentages")
     for end_position, colors in end_positions_percentages.items():
-        msg6 = str(end_position) + ": " + str(colors)
-        logging.debug(msg6)
+        logging.debug('%d: %s', end_position, colors)
 
     end_result = defaultConfig.copy()
     logging.info("end result")
@@ -411,43 +342,3 @@ def analyze_frame(angle, frame):
     raw_cubes = detect_colored_cubes(frame, cv2, angle)
     cubes = split_big_cubes(raw_cubes)
     return analyze_positions_in_one_frame(cubes, angle)
-
-
-def analyze_cube_positions_from_video(path) -> Dict[int, Type[PositionIdentifier | None]]:
-    # VideoCapture-Objekt erstellen und Video-Datei laden
-    cap = cv2.VideoCapture(path)
-
-    frame_count = 0
-    angle = 0
-    video_positions: [Dict[int, Type[PositionIdentifier | None]]] = []
-    while True:
-        if angle > 270:
-            break
-
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        if frame_count != 0:
-            frame_count = frame_count - 1
-            continue
-        else:
-            # todo: check with angle detector whether we are good
-            frame_count = 220
-
-        raw_cubes = detect_colored_cubes(frame, cv2, angle)
-        cubes = split_big_cubes(raw_cubes)
-        frame_positions = analyze_positions_in_one_frame(cubes, angle)
-        video_positions.append(frame_positions)
-
-        angle = angle + 90
-        # if angle >= 270:
-        # todo: remove
-        # break
-    config = analyze_video_positions(video_positions)
-
-    try:
-        cap.release()
-        cv2.destroyAllWindows()
-    finally:
-        return config

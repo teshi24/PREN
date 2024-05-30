@@ -4,7 +4,7 @@ from abc import abstractmethod, ABC
 
 import cv2
 
-from env import logging_level, PATH
+from env import logging_level, dummies, PATH
 import logging
 from frame_analyzer import position_analyzer as pa
 from datetime import datetime
@@ -15,14 +15,8 @@ import time
 # Module importieren
 from src.path_finder.path_finder import find_best_path
 from src.referencearea_detection.referencearea_detection import get_image_and_angle
-from Display.progress_bar import show_progress_bar
-from Display.energy_consumption import show_energy_consumption
-
-# from src.Display.progress_bar import update_display
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging_level)
-## todo: remove dummies / set it to False
-dummys = True
 
 
 def write_to_file(positions_json, i):
@@ -34,20 +28,16 @@ def write_to_file(positions_json, i):
 
 def analyze_frames(frame_queue: queue.Queue):
     (frame, angle) = frame_queue.get()
-    logging.info('img 0')
-    logging.debug(angle)
+    logging.info(f'img 0, angle {angle}')
 
     (frame1, angle1) = frame_queue.get()
-    logging.info('img 1')
-    logging.debug(angle1)
+    logging.info(f'img 1, angle {angle1}')
 
     (frame2, angle2) = frame_queue.get()
-    logging.info('img 2')
-    logging.debug(angle2)
+    logging.info(f'img 2, angle {angle2}')
 
     (frame3, angle3) = frame_queue.get()
-    logging.info('img 3')
-    logging.debug(angle3)
+    logging.info(f'img 3, angle {angle3}')
 
     logging.info('position analysis starting')
     positions = pa.analyze_cube_positions_per_frames(frame, angle, frame1, angle1, frame2, angle2, frame3, angle3)
@@ -204,15 +194,17 @@ class Main:
             self.signal_interface.wait_for_feedback()
 
 
-if dummys:
+frame_detection_func = get_image_and_angle
+if dummies:
     signalInterface = DummySignalInterface()
-    frame_detection_func = get_image_and_angle
     progress_bar_func = update_progress_bar_dummy
     energy_func = get_energy_consumption_dummy
 else:
     raise NotImplementedError('need to connect the IC2-IF ;)')
     signalInterface = I2CSignalInterface(None, None)
-    frame_detection_func = get_image_and_angle
+
+    from Display.progress_bar import show_progress_bar
+    from Display.energy_consumption import show_energy_consumption
     progress_bar_func = show_progress_bar
     energy_func = show_energy_consumption
 
