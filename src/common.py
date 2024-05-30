@@ -57,16 +57,18 @@ def analyze_frames(frame_queue: queue.Queue):
     logging.info('positions written to file')
 
 
-def get_energy_consumption_dummy():
-    return 100
-
-def update_energy_consumption_dummy(energy_consumption):
+def show_energy_consumption_dummy(energy_consumption):
     print(f"Dummy update_display: Energy Consumption: {energy_consumption} wh")
 
-def update_progress_bar_dummy():
-    for i in range(11):
-        print(f"Progressbar bei {10 * i} %")
+
+def update_progress_bar_dummy(energy_consumption_event):
+    i = 0
+    while not energy_consumption_event.is_set():
+        print(f"Progressbar bei {i} %")
         time.sleep(1)
+        i += 1
+    print(f"Progressbar bei 100 %")
+    print(f'energy consumption: {energy_consumption_event.energy_consumption}')
 
 
 def get_image_and_angle_dummy_from_video(result_queue: queue.Queue, running: threading.Event):
@@ -109,7 +111,7 @@ class SignalInterface(ABC):
         pass
 
     @abstractmethod
-    def wait_for_feedback(self):
+    def wait_for_energy_consumption(self):
         pass
 
 
@@ -128,7 +130,7 @@ class I2CSignalInterface(SignalInterface):
             if start_signal:
                 return
 
-    def wait_for_feedback(self):
+    def wait_for_energy_consumption(self):
         while True:
             feedback = self.bus.read_byte(self.arduino_i2c_address)
             if feedback:
@@ -137,18 +139,18 @@ class I2CSignalInterface(SignalInterface):
 
 class DummySignalInterface(SignalInterface):
     def wait_for_start_signal(self):
-        print("Press 's' to send start signal")
+        print("Press 's' to simulate the retrieval of the start signal from the machine")
         while True:
             key = input()
             if key == 's':
                 return
 
-    def wait_for_feedback(self):
-        print("Press 'f' to send feedback")
+    def wait_for_energy_consumption(self):
+        print("Press 'f' to to simulate the retrieval of the energy consumption from the machine (which is also the 'finished' signal)")
         while True:
             key = input()
             if key == 'f':
-                return
+                return 100
 
 
 class Main:
@@ -162,7 +164,8 @@ class Main:
         while True:
             self.signal_interface.wait_for_start_signal()
 
-            progress_bar_thread = threading.Thread(target=self.progress_bar_func)
+            energy_consumption_event = threading.Event()
+            progress_bar_thread = threading.Thread(target=self.progress_bar_func, args=[energy_consumption_event])
             progress_bar_thread.start()
 
             logging.info('open queue')
@@ -178,33 +181,28 @@ class Main:
             analyze_frames_thread = threading.Thread(target=analyze_frames, args=[frame_queue])
             analyze_frames_thread.start()
 
-            # Wait for the progress bar to complete
-            progress_bar_thread.join()
-
-            # Display energy consumption
-            energy_consumption = self.energy_func()
-            energy_consumption_thread = threading.Thread(target=update_energy_consumption_dummy, args=(energy_consumption,))
-            energy_consumption_thread.start()
-
             analyze_frames_thread.join()
             running.clear()
             find_frame_thread.join()
-            energy_consumption_thread.join()
 
-            self.signal_interface.wait_for_feedback()
+            energy_consumption = self.signal_interface.wait_for_energy_consumption()
+            energy_consumption_event.energy_consumption = energy_consumption
+            energy_consumption_event.set()
 
 
 frame_detection_func = get_image_and_angle
 if dummies:
     signalInterface = DummySignalInterface()
     progress_bar_func = update_progress_bar_dummy
-    energy_func = get_energy_consumption_dummy
+    energy_func = show_energy_consumption_dummy
 else:
     raise NotImplementedError('need to connect the IC2-IF ;)')
     signalInterface = I2CSignalInterface(None, None)
-
+    # display module nur importieren, wenn sie genutzt werden sollen
+    # - dann müssen gewisse packages nur auf raspy installiert werden
     from Display.progress_bar import show_progress_bar
     from Display.energy_consumption import show_energy_consumption
+
     progress_bar_func = show_progress_bar
     energy_func = show_energy_consumption
 
