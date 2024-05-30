@@ -29,10 +29,10 @@ def write_to_file(positions_json, i):
 def analyze_frames(frame_queue: queue.Queue, positions: {}):
     found_positions = []
     for i in range(4):
-        (frame, angle) = frame_queue.get()
+        (frame, angle, intersection_point, edges) = frame_queue.get()
         logging.info('position analysis starting')
         logging.info(f'img {i}, angle {angle}')
-        found_positions.append(pa.analyze_frame(frame, angle))
+        found_positions.append(pa.analyze_frame(frame, angle, intersection_point, edges))
 
     positions.update(pa.combine_positions(found_positions))
 

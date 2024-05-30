@@ -87,13 +87,13 @@ def find_frame(frame):
         if median_horizontal is not None and median_vertical is not None:
             intersection_point = check_intersection_median(median_horizontal, median_vertical)
             if intersection_point:
-                return frame, intersection_point
+                return frame, intersection_point, edges
 
     if show_imgs:
         cv2.imshow('edges', edges)
         cv2.imshow('frame_copy', frame_copy)
         cv2.waitKey(0)
-    return None, None
+    return None, None, None
 
 
 def draw_median_line(frame_copy, median_line):
@@ -199,7 +199,7 @@ def get_image_and_angle(frame_queue, running):
         if not ret:
             logging.warning('Warning: unable to read next frame')
             break
-        found_frame, intersection_point = find_frame(frame)
+        found_frame, intersection_point, edges = find_frame(frame)
         if found_frame is not None:
             angle = to_white_area(found_frame, intersection_point)
             if angle in visited_angles:
@@ -208,7 +208,7 @@ def get_image_and_angle(frame_queue, running):
                 continue
 
             logging.info(f"Found frame with angle {angle}°")
-            frame_queue.put((frame, angle))
+            frame_queue.put((frame, angle, intersection_point, edges))
             visited_angles.add(angle)
             if write_imgs:
                 cv2.imwrite(f'test_frame_angle_{angle}.jpg', frame)

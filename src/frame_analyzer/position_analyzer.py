@@ -321,7 +321,7 @@ def combine_positions(video_positions: [Dict[int, Type[PositionIdentifier | None
     return end_result
 
 
-def analyze_frame(frame, angle):
+def analyze_frame(frame, angle, intersection_point, edges):
     raw_cubes = detect_colored_cubes(frame, cv2, angle)
     cubes = split_big_cubes(raw_cubes)
     return analyze_positions_in_one_frame(cubes, angle)
