@@ -1,128 +1,13 @@
 import logging
-from dataclasses import dataclass
-from enum import Enum
 import cv2
 from typing import Dict, Type
-from .color_detector import detect_colored_cubes
-from .data_types import Cube, Color
 
+import numpy as np
 
-class PositionIdentifier:
-    def __init__(self,
-                 calibration_cube: Cube,
-                 position_in_frame: int,
-                 prerequisite: int | None = None,
-                 hidden_by: [[int]] = None):
-        self.calibrationCube = calibration_cube
-        # todo: check tolerances
-        self.toleranceXAxis = 35
-        self.toleranceYAxis = 85
-        self.position = position_in_frame
-        self.prerequisite = prerequisite
-        self.hidden_by = hidden_by
+from env import show_imgs
+from .data_types import Color, blue_lower, blue_upper, red_lower1, red_upper1, red_lower2, red_upper2, \
+    yellow_lower, yellow_upper
 
-    def is_cube_at_position(self, cube: Cube):
-        return (self.__is_value_in_range(cube.x, self.calibrationCube.x, self.toleranceXAxis) and
-                self.__is_value_in_range(cube.y, self.calibrationCube.y, self.toleranceYAxis) and
-                self.__is_value_in_range(cube.cx, self.calibrationCube.cx, self.toleranceXAxis) and
-                self.__is_value_in_range(cube.cy, self.calibrationCube.cy, self.toleranceYAxis))
-
-    @staticmethod
-    def __is_value_in_range(value: int, average: int, delta: int):
-        lower_bound = average - delta
-        upper_bound = average + delta
-        return lower_bound <= value <= upper_bound
-
-
-# würfelposition: position_im_frame
-# obere Fläche  0°             obere Fläche  90°                              obere Fläche  180°           obere Fläche  270°
-# +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
-# | 7:7 | 6:6 |                | 8:7 | 7:6 |                                 | 5:7 | 8:6 |                | 6:7 | 5:6 |
-# +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
-# | 8:8 | 5:5 |                | 5:8 | 6:5 |                                 | 6:8 | 7:5 |                | 7:8 | 8:5 |
-# +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
-# untere Fläche                untere Fläche                                 untere Fläche                untere Fläche
-# +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
-# | 3:3 | 2:2 |                | 4:3 | 3:2 | weisser Bereich weisser Bereich | 1:3 | 4:2 |                | 2:3 | 1:2 |
-# +-----+-----+ --             +-----+-----+ --                           -- +-----+-----+             -- +-----+-----+
-# | 4:4 | 1:1 |                | 1:4 | 2:1 |                                 | 2:4 | 3:1 |                | 3:4 | 4:1 |
-# +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
-#     |      weisser Bereich                                                                    weisser Bereich |
-
-defaultConfig: Dict[int, Type[PositionIdentifier | None]] = {
-    1: None,
-    2: None,
-    3: None,
-    4: None,
-    5: None,
-    6: None,
-    7: None,
-    8: None
-}
-
-# todo: add calibration algorithm
-
-# difference for 8  top front left        242,    057,    090,    165
-# difference for 5  top front right       322,    065,    100,    114
-# difference for 7  top back  left        240,    011,    081,   -091
-# difference for 6  top back  right       316,    034,    092,    070
-# difference for 3  bottom back left      241,    184,    086,    066
-# difference for 2  bottom back right     320,    184,    086,    066
-# difference for 1  bottom front right    323,    215,    072,    020
-# difference for 4  bottom front left     241,    152,    079,    079
-
-# --> left                              ca. 241
-# --> right                             ca. 320
-# --> top                                       ca. 042
-# --> bottom                                    ca. 184
-# --> avg                                               ca. 86  ca. 66
-
-# extra sortiert, damit andere Reihenfolge entdeckt wird
-# when analyzing from videos
-# calibratedPositions0Degree = {
-#     8: PositionIdentifier(Cube(Color.NONE, 770, 177, 200, 274), 8, 4),
-#     5: PositionIdentifier(Cube(Color.NONE, 964, 183, 210, 258), 5, 1),
-#     7: PositionIdentifier(Cube(Color.NONE, 780, 98, 186, 126), 7, 3),
-#     6: PositionIdentifier(Cube(Color.NONE, 952, 100, 196, 100), 6, 2),
-#     3: None,  # PositionIdentifier(Cube(Color.NONE, 967, 411, 196, 100)),
-#     2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164, 98), 2),
-#     1: PositionIdentifier(Cube(Color.NONE, 967, 411, 182, 162), 1),
-#     4: PositionIdentifier(Cube(Color.NONE, 781, 416, 184, 158), 4),
-# }
-
-
-# todo: further calibrate, especially position 2
-# extra sortiert, damit andere Reihenfolge entdeckt wird
-calibratedPositions0Degree = {
-    8: PositionIdentifier(Cube(Color.NONE, 532, 120, 110, 109), 8, 4),
-    # difference for 8                        242,    057,    090,    165
-    5: PositionIdentifier(Cube(Color.NONE, 642, 118, 110, 144), 5, 1),
-    # difference for 5                        322,    065,    100,    114
-    7: PositionIdentifier(Cube(Color.NONE, 540, 87, 105, 135), 7, 3),
-    # difference for 7                        240,    011,    081,   -091
-    6: PositionIdentifier(Cube(Color.NONE, 636, 66, 104, 130), 6, 2),
-    # difference for 6                        316,    034,    092,    070
-    3: None,  # PositionIdentifier(Cube(Color.NONE, 728, 227, 110, 034)),
-    # difference for 3  bottom back left            241, 184, 086, 066
-#   2: PositionIdentifier(Cube(Color.NONE, 968, 244, 164, 98), 2),
-    2: PositionIdentifier(Cube(Color.NONE, 648, 100, 90, 32), 2),
-    # difference for 2  bottom back right     320,    184,    086,    066
-    1: PositionIdentifier(Cube(Color.NONE, 644, 196, 110, 142), 1),
-    # difference for 1                        323,    215,    072,    020
-    4: PositionIdentifier(Cube(Color.NONE, 540, 264, 105, 79), 4),
-    # difference for 4                        241,    152,    079,    079
-}
-
-calibratedPositions90Degree = {
-    5: calibratedPositions0Degree[8],
-    6: calibratedPositions0Degree[5],
-    8: calibratedPositions0Degree[7],
-    7: calibratedPositions0Degree[6],
-    4: calibratedPositions0Degree[3],
-    3: calibratedPositions0Degree[2],
-    2: calibratedPositions0Degree[1],
-    1: calibratedPositions0Degree[4],
-}
 # würfelposition: position_im_per_frame
 # obere Fläche  0°             obere Fläche  90°                              obere Fläche  180°           obere Fläche  270°
 # +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
@@ -137,113 +22,23 @@ calibratedPositions90Degree = {
 # | 4:4 | 1:1 |                | 1:4 | 2:1 |                                 | 2:4 | 3:1 |                | 3:4 | 4:1 |
 # +-----+-----+                +-----+-----+                                 +-----+-----+                +-----+-----+
 #     |      weisser Bereich                                                                    weisser Bereich |
-
-calibratedPositions180Degree = {
-    6: calibratedPositions0Degree[8],
-    7: calibratedPositions0Degree[5],
-    5: calibratedPositions0Degree[7],
-    8: calibratedPositions0Degree[6],
-    1: calibratedPositions0Degree[3],
-    4: calibratedPositions0Degree[2],
-    3: calibratedPositions0Degree[1],
-    2: calibratedPositions0Degree[4],
-}
-calibratedPositions270Degree = {
-    7: calibratedPositions0Degree[8],
-    8: calibratedPositions0Degree[5],
-    6: calibratedPositions0Degree[7],
-    5: calibratedPositions0Degree[6],
-    2: calibratedPositions0Degree[3],
-    1: calibratedPositions0Degree[2],
-    4: calibratedPositions0Degree[1],
-    3: calibratedPositions0Degree[4],
-}
+# corresponding position in order of positions in frame
+position_mapping_0_degrees = [1, 2, 3, 4, 5, 6, 7, 8]
+position_mapping_90_degrees = [2, 3, 4, 1, 6, 7, 8, 5]
+position_mapping_180_degrees = [3, 4, 1, 2, 7, 8, 5, 6]
+position_mapping_270_degrees = [4, 1, 2, 3, 8, 5, 6, 7]
 
 
-@dataclass
-class CalibratedPosition:
-    positions: Dict[int, PositionIdentifier]
-
-
-class CalibratedPositions(CalibratedPosition, Enum):
-    DEGREE_0 = calibratedPositions0Degree,
-    DEGREE_90 = calibratedPositions90Degree,
-    DEGREE_180 = calibratedPositions180Degree,
-    DEGREE_270 = calibratedPositions270Degree,
-
-    # todo: cleanup angle
-    @classmethod
-    def from_angle(cls, angle):
-        if angle == 0 or angle == 45:
-            return cls.DEGREE_0
-        elif angle == 90 or angle == 135:
-            return cls.DEGREE_90
-        elif angle == 180 or angle == 225:
-            return cls.DEGREE_180
-        elif angle == 270 or angle == 315:
-            return cls.DEGREE_270
-        else:
-            raise ValueError(f"Invalid angle: {angle}")
-
-
-def split_cubes_next_to_each_other(cube: [Cube]):
-    half_w = int(cube.w / 2)
-
-    right_cube = Cube(cube.color, cube.x, cube.y, half_w, cube.h)
-    left_cube = Cube(cube.color, cube.x + half_w, cube.y, half_w, cube.h)
-
-    return [right_cube, left_cube]
-
-
-def split_cubes_on_top_of_each_other(cube: [Cube]):
-    half_h = int(cube.h / 2)
-
-    right_cube = Cube(cube.color, cube.x, cube.y, cube.w, half_h)
-    left_cube = Cube(cube.color, cube.x, cube.y + half_h, cube.w, half_h)
-
-    return [right_cube, left_cube]
-
-
-def split_big_cubes(cubes: [Cube]):
-    clean_cubes: [Cube] = []
-
-    for cube in cubes:
-        width_in_range = cube.width_in_range()
-        height_in_range = cube.height_in_range()
-        if width_in_range and height_in_range:
-            # cube standard size
-            clean_cubes.append(cube)
-            continue
-        if not width_in_range:
-            if not height_in_range:
-                # todo: fix spezialfall - mit cnts analysieren
-                clean_cubes.append(cube)
-                continue
-            # nebeneinander
-            clean_cubes.extend(split_cubes_next_to_each_other(cube))
-            continue
-        # todo: fix spezialfall wahrscheinlich ober einander
-        #       ! kann aber auch hintereinander sein !
-        clean_cubes.extend(split_cubes_on_top_of_each_other(cube))
-
-    return clean_cubes
-
-
-def analyze_positions_in_one_frame(cubes: [Cube], angle):
-    positions = defaultConfig.copy()
-
-    calibrated_positions = CalibratedPositions.from_angle(angle).positions
-
-    for cube in cubes:
-        logging.debug('color: %s, x: %d, y: %d, center: %s', cube.color.color_name, cube.x, cube.y, cube.center)
-        for key, position_identifier in calibrated_positions.items():
-            if positions[key] is None and position_identifier is not None and position_identifier.is_cube_at_position(
-                    cube):
-                positions[key] = cube.color
-                break
-
-    log_positions(f"detected positions for {angle}:", positions)
-    return positions
+def get_position_mapping_per_angle(angle):
+    if angle == 0:
+        return position_mapping_0_degrees
+    if angle == 90:
+        return position_mapping_90_degrees
+    if angle == 180:
+        return position_mapping_180_degrees
+    if angle == 270:
+        return position_mapping_270_degrees
+    raise ValueError(f'unknown angle provided for gathering the position mapping {angle}')
 
 
 def log_positions(analysis_name, positions):
@@ -251,12 +46,23 @@ def log_positions(analysis_name, positions):
     for key in positions:
         color = positions[key]
         if color is None:
-            position_string += str(key) + ": None,"
+            position_string += str(key) + ": None, "
             continue
-        position_string += str(key) + ": " + str(color.color_name) + ","
+        position_string += str(key) + ": " + str(color.color_name) + ", "
     position_string += " }"
-    logging.info(analysis_name + position_string)
+    logging.info(analysis_name + " " + position_string)
 
+
+defaultConfig: Dict[int, Type[Color | None]] = {
+    1: None,
+    2: None,
+    3: None,
+    4: None,
+    5: None,
+    6: None,
+    7: None,
+    8: None
+}
 
 End_Result = {
     Color.RED.color_name: int,
@@ -266,7 +72,7 @@ End_Result = {
 }
 
 
-def combine_positions(video_positions: [Dict[int, Type[PositionIdentifier | None]]]):
+def combine_positions(video_positions: [Dict[int, Type[Color | None]]]):
     logging.debug("analyze_video_positions started")
     starting_point = {Color.RED.color_name: 0,
                       Color.BLUE.color_name: 0,
@@ -322,6 +128,202 @@ def combine_positions(video_positions: [Dict[int, Type[PositionIdentifier | None
 
 
 def analyze_frame(frame, angle, intersection_point, edges):
-    raw_cubes = detect_colored_cubes(frame, cv2, angle)
-    cubes = split_big_cubes(raw_cubes)
-    return analyze_positions_in_one_frame(cubes, angle)
+    areas = get_areas(frame)
+    positions = find_cube_positions(areas, intersection_point, angle)
+
+    if show_imgs:
+        # destroy imgs from analysis here, so that the related logs can be compared on runtime with the frames
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    return positions
+
+
+def find_cube_positions(areas, intersection_point, angle):
+    positions = defaultConfig.copy()
+
+    pos_bottom_front_right, pos_bottom_back_right, pos_bottom_back_left, pos_bottom_front_left, pos_top_front_right, pos_top_back_right, pos_top_back_left, pos_top_front_left = get_position_mapping_per_angle(
+        angle)
+
+    logging.debug(f'areas unsorted: {areas}')
+    top_right, top_left, bottom_left, bottom_right = categorize_areas(areas, intersection_point)
+
+    # todo: handle if this is a problem
+    len_bottom_left = len(bottom_left)
+    len_bottom_right = len(bottom_right)
+    len_top_left = len(top_left)
+    len_top_right = len(top_right)
+    if len_bottom_left > 1:
+        logging.warning(f'Warning: bottom_left has to many values: {len_bottom_left}')
+    if len_bottom_right > 1:
+        logging.warning(f'Warning: bottom_right has to many values: {len_bottom_right}')
+    if len_top_left > 3:
+        logging.warning(f'Warning: top_left has to many values: {len_top_left}')
+    if len_top_right > 3:
+        logging.warning(f'Warning: top_right has to many values: {len_top_right}')
+
+    if len_bottom_left > 0:
+        positions[pos_bottom_front_left] = bottom_left[0][-1]
+    if len_bottom_right > 0:
+        positions[pos_bottom_front_right] = bottom_right[0][-1]
+    analyze_top_quarter(positions, len_top_left, top_left, pos_bottom_back_left, pos_bottom_front_left,
+                        pos_top_back_left, pos_top_front_left)
+    analyze_top_quarter(positions, len_top_right, top_right, pos_bottom_back_right, pos_bottom_front_right,
+                        pos_top_back_right, pos_top_front_right)
+
+    log_positions(f'positions at {angle}:', positions)
+    return positions
+
+
+def analyze_top_quarter(positions, len_top_section, top_section, pos_bottom_back, pos_bottom_front, pos_top_back,
+                        pos_top_front):
+    if len_top_section == 1:  # fallback if the position below has not been found correctly
+        if positions[pos_bottom_front] is None:
+            positions[pos_bottom_front] = top_section[0][-1]
+    elif len_top_section > 1:
+        if len_top_section == 3:
+            positions[pos_top_back] = top_section[-1][-1]
+            del top_section[-1]
+        higher_area = top_section[-1]
+        lower_area = top_section[0]
+        if positions[pos_bottom_front] is None:
+            positions[pos_bottom_back] = lower_area[-1]
+        else:
+            same_color_higher_lower = higher_area[-1] == lower_area[-1]
+            if not same_color_higher_lower:
+                if positions[pos_top_back] is None:
+                    positions[pos_bottom_back] = higher_area[-1]
+                # else it is certainly not top front, therefore no new position found
+            else:
+                if positions[pos_top_back] is None:
+                    # compare heights
+                    if higher_area[-3] < lower_area[-3]:
+                        positions[pos_top_front] = higher_area[-1]
+                    else:
+                        positions[pos_bottom_back] = higher_area[-1]
+                else:
+                    if higher_area[-3] < lower_area[-3]:
+                        positions[pos_top_front] = higher_area[-1]
+                    # else it is certainly not top front, therefore no new position found
+
+
+def categorize_areas(areas, intersection_point):
+    quadrant_I = []
+    quadrant_II = []
+    quadrant_III = []
+    quadrant_IV = []
+
+    for x, y, w, h, center, main_color in areas:
+        ## attention - the pixel values for y get bigger if they get lower in the picture, thats why this is inverted
+        dx = center[0] - intersection_point[0]
+        dy = intersection_point[1] - center[1]
+
+        if dx > 0 and dy > 0:
+            quadrant_I.append((x, y, w, h, center, main_color))
+        elif dx < 0 and dy > 0:
+            quadrant_II.append((x, y, w, h, center, main_color))
+        elif dx < 0 and dy < 0:
+            quadrant_III.append((x, y, w, h, center, main_color))
+        elif dx > 0 and dy < 0:
+            quadrant_IV.append((x, y, w, h, center, main_color))
+
+    logging.debug("Quadrant I: %s", quadrant_I)
+    logging.debug("Quadrant II: %s", quadrant_II)
+    logging.debug("Quadrant III: %s", quadrant_III)
+    logging.debug("Quadrant IV: %s", quadrant_IV)
+
+    return quadrant_I, quadrant_II, quadrant_III, quadrant_IV
+
+
+def get_areas(frame):
+    areas = []
+    blurred = cv2.GaussianBlur(frame, (3, 3), 0)
+    edges_blurred = cv2.Canny(blurred, 20, 180)
+    lines = cv2.HoughLinesP(edges_blurred, 1, np.pi / 180, threshold=10, minLineLength=2, maxLineGap=10)
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi
+            if np.abs(angle) < 15 or np.abs(angle - 180) < 15:
+                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 0), 3)  # Green lines
+            elif np.abs(angle - 90) < 20 or np.abs(angle + 90) < 20:
+                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 0), 3)  # Green lines
+
+    edges_blurred = cv2.Canny(frame, 50, 150)
+    lines = cv2.HoughLinesP(edges_blurred, 1, np.pi / 180, threshold=30, minLineLength=1, maxLineGap=80)
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi
+            if np.abs(angle) < 5 or np.abs(angle - 180) < 5:
+                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 0), 5)  # Green lines
+            elif np.abs(angle - 90) < 5 or np.abs(angle + 90) < 5:
+                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 0), 5)  # Green lines
+
+    blurred = cv2.GaussianBlur(frame, (5, 5), 0)
+    edges_blurred = cv2.Canny(blurred, 50, 150)
+    # # find contours from edges and show them
+    contours, _ = cv2.findContours(edges_blurred, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    max_contour_area = 7000
+    min_contour_area = 800
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if min_contour_area < area < max_contour_area:
+            x, y, w, h = cv2.boundingRect(contour)
+            rectangle_area = w * h
+            if min_contour_area < rectangle_area < max_contour_area:
+                main_color = get_main_color(frame[y:y + h, x:x + w], x, y)
+                if main_color is None:
+                    continue
+                left_top = (x, y)
+                right_bottom = (x + w, y + h)
+                cv2.rectangle(frame, left_top, right_bottom, (0, 255, 0), 2)
+
+                center = get_center(contour)
+                cv2.circle(frame, center, 3, (0, 255, 0), -1)
+
+                areas.append((x, y, w, h, center, main_color))
+
+    if show_imgs:
+        cv2.imshow('frame', frame)
+        cv2.imshow('edges_blurred', edges_blurred)
+    return areas
+
+
+def get_center(contour):
+    M = cv2.moments(contour)
+    if M['m00'] != 0:
+        centroid_x = int(M['m10'] / M['m00'])
+        centroid_y = int(M['m01'] / M['m00'])
+        return centroid_x, centroid_y
+
+
+def get_main_color(rgb_roi, x, y):
+    roi = cv2.cvtColor(rgb_roi, cv2.COLOR_BGR2HSV)
+    if is_color_matched(roi, red_lower1, red_upper1, red_lower2, red_upper2):
+        logging.debug(f"Cube at ({x}, {y}) is red.")
+        return Color.RED
+    elif is_color_matched(roi, yellow_lower, yellow_upper):
+        logging.debug(f"Cube at ({x}, {y}) is yellow.")
+        return Color.YELLOW
+    elif is_color_matched(roi, blue_lower, blue_upper):
+        logging.debug(f"Cube at ({x}, {y}) is blue.")
+        return Color.BLUE
+    logging.debug(f"Cube at ({x}, {y}) has an unknown color.")
+    return None
+
+
+def is_color_matched(hsv, lower_bound1, upper_bound1, lower_bound2=None, upper_bound2=None):
+    mask = cv2.inRange(hsv, lower_bound1, upper_bound1)
+    if lower_bound2 is not None:
+        mask = cv2.add(cv2.inRange(hsv, lower_bound2, upper_bound2), mask)
+
+    # Morphologische Operationen
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    mask = cv2.erode(mask, kernel, iterations=1)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
+    return len(contours) > 0

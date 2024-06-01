@@ -9,7 +9,7 @@ import numpy as np
 import sys
 import cv2 as cv
 
-from src.frame_analyzer.data_types import Color, Cube
+from POC.data_types_POC import Cube, Color
 
 
 def show_wait_destroy(winname, img):

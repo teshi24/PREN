@@ -3,7 +3,24 @@ import cv2
 import numpy as np
 
 from env import logging_level, show_imgs, write_imgs
-from src.frame_analyzer.color_detector import detect_contours
+from src.camera_interface.camera_interface import open_camera_profile
+
+
+def detect_contours(image, lower_bound1, upper_bound1, lower_bound2=None, upper_bound2=None, min_area=700):
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, lower_bound1, upper_bound1)
+    if lower_bound2 is not None:
+        mask = cv2.add(cv2.inRange(hsv, lower_bound2, upper_bound2), mask)
+
+    # Morphologische Operationen
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    mask = cv2.erode(mask, kernel, iterations=1)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
+    filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+
+    return filtered_contours
 
 
 def check_intersection_median(h_line, v_line):
@@ -183,11 +200,7 @@ def to_white_area(frame, intersection_point):
 def get_image_and_angle(frame_queue, running):
     logging.debug('Trying to get image')
 
-    # RTSP-Zugangsdaten und Kameraeinstellungen
-    cap = setup_video_capture('pren', '463997', '147.88.48.131', 'pren_profile_med')
-    if cap is None or not cap.isOpened():
-        logging.warning('Warning: unable to open video source')
-        return None
+    cap = open_camera_profile()
 
     logging.debug('Image analysis starting...')
 
@@ -219,19 +232,4 @@ def get_image_and_angle(frame_queue, running):
     cap.release()
 
 
-def setup_video_capture(username, password, ip_address, profile):
-    """
-    Erstellt ein VideoCapture-Objekt für die angegebene RTSP-Quelle.
 
-    :param username: Benutzername für die RTSP-Quelle
-    :param password: Passwort für die RTSP-Quelle
-    :param ip_address: IP-Adresse der RTSP-Quelle
-    :param profile: Streamprofil für die RTSP-Quelle
-    :return: VideoCapture-Objekt
-    """
-    return cv2.VideoCapture('rtsp://' +
-                            username + ':' +
-                            password +
-                            '@' + ip_address +
-                            '/axis-media/media.amp' +
-                            '?streamprofile=' + profile)
