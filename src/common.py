@@ -135,9 +135,8 @@ class DummySignalInterface(SignalInterface):
 
 
 class Main:
-    def __init__(self, signal_interface, frame_detection_func, progress_bar_func, energy_func):
+    def __init__(self, signal_interface, progress_bar_func, energy_func):
         self.signal_interface = signal_interface
-        self.frame_detection_func = frame_detection_func
         self.progress_bar_func = progress_bar_func
         self.energy_func = energy_func
 
@@ -156,7 +155,7 @@ class Main:
 
             running = threading.Event()
             running.set()
-            find_frame_thread = threading.Thread(target=self.frame_detection_func, args=(frame_queue, running))
+            find_frame_thread = threading.Thread(target=get_image_and_angle, args=(frame_queue, running))
             find_frame_thread.start()
 
             positions = {}
@@ -185,7 +184,6 @@ class Main:
             energy_consumption_event.set()
 
 
-frame_detection_func = get_image_and_angle
 if dummies:
     signalInterface = DummySignalInterface()
     progress_bar_func = update_progress_bar_dummy
@@ -201,4 +199,4 @@ else:
     progress_bar_func = show_progress_bar
     energy_func = show_energy_consumption
 
-Main(signalInterface, frame_detection_func, progress_bar_func, energy_func).main()
+Main(signalInterface, progress_bar_func, energy_func).main()
